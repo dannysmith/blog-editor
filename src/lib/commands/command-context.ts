@@ -63,6 +63,11 @@ export function useCommandContext(): CommandContext {
     toggleTypewriterMode: () => {
       window.dispatchEvent(new CustomEvent('toggle-typewriter-mode'))
     },
+    toggleCopyeditMode: () => {
+      // eslint-disable-next-line no-console
+      console.log('[CopyeditMode] Dispatching toggle-copyedit-mode event')
+      window.dispatchEvent(new CustomEvent('toggle-copyedit-mode'))
+    },
     // Future: editor selection context could be added here
   }
 }

@@ -187,6 +187,18 @@ export function useLayoutEventListeners() {
       useUIStore.getState().toggleTypewriterMode()
     }
 
+    const handleToggleCopyeditMode = () => {
+      // eslint-disable-next-line no-console
+      console.log('[CopyeditMode] Event listener triggered')
+      const currentState = useUIStore.getState().copyeditModeEnabled
+      // eslint-disable-next-line no-console
+      console.log('[CopyeditMode] Current state:', currentState)
+      useUIStore.getState().toggleCopyeditMode()
+      const newState = useUIStore.getState().copyeditModeEnabled
+      // eslint-disable-next-line no-console
+      console.log('[CopyeditMode] New state:', newState)
+    }
+
     const handleFileOpened = (event: Event) => {
       const customEvent = event as CustomEvent<{ collectionName: string }>
       const { collectionName } = customEvent.detail
@@ -200,6 +212,7 @@ export function useLayoutEventListeners() {
       'toggle-typewriter-mode',
       handleToggleTypewriterMode
     )
+    window.addEventListener('toggle-copyedit-mode', handleToggleCopyeditMode)
     window.addEventListener('file-opened', handleFileOpened)
 
     return () => {
@@ -207,6 +220,10 @@ export function useLayoutEventListeners() {
       window.removeEventListener(
         'toggle-typewriter-mode',
         handleToggleTypewriterMode
+      )
+      window.removeEventListener(
+        'toggle-copyedit-mode',
+        handleToggleCopyeditMode
       )
       window.removeEventListener('file-opened', handleFileOpened)
     }

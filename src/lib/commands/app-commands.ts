@@ -15,6 +15,7 @@ import {
   Settings,
   Eye,
   Edit,
+  Highlighter,
 } from 'lucide-react'
 import { AppCommand, CommandContext } from './types'
 import { Collection, FileEntry } from '../../store'
@@ -178,6 +179,19 @@ export const viewModeCommands: AppCommand[] = [
     group: 'settings',
     execute: (context: CommandContext) => {
       context.toggleTypewriterMode()
+    },
+    isAvailable: () => true,
+  },
+  {
+    id: 'toggle-copyedit-mode',
+    label: 'Toggle Copyedit Mode',
+    description: 'Highlight parts of speech to analyze writing patterns',
+    icon: Highlighter,
+    group: 'settings',
+    execute: (context: CommandContext) => {
+      // eslint-disable-next-line no-console
+      console.log('[CopyeditMode] Command executed from command palette')
+      context.toggleCopyeditMode()
     },
     isAvailable: () => true,
   },

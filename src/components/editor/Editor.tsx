@@ -28,6 +28,12 @@ const EditorViewComponent: React.FC = () => {
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
   const copyeditModeEnabled = useUIStore(state => state.copyeditModeEnabled)
+
+  // eslint-disable-next-line no-console
+  console.log(
+    '[CopyeditMode] Component render - copyeditModeEnabled:',
+    copyeditModeEnabled
+  )
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const [isAltPressed, setIsAltPressed] = useState(false)
@@ -64,18 +70,49 @@ const EditorViewComponent: React.FC = () => {
 
   useTauriListeners(viewRef.current)
 
-  // Update editor effects when writing modes change
-  useEffect(() => {
+  // Handle mode changes - use stable callback with getState() pattern
+  const handleModeChange = useCallback(() => {
+    // Get fresh values from store using getState() pattern per architecture guide
+    const {
+      focusModeEnabled: currentFocusMode,
+      typewriterModeEnabled: currentTypewriterMode,
+      copyeditModeEnabled: currentCopyeditMode,
+    } = useUIStore.getState()
+
+    // eslint-disable-next-line no-console
+    console.log(
+      '[CopyeditMode] Mode change handler - copyeditModeEnabled:',
+      currentCopyeditMode,
+      'focusModeEnabled:',
+      currentFocusMode,
+      'typewriterModeEnabled:',
+      currentTypewriterMode
+    )
     if (viewRef.current) {
+      // eslint-disable-next-line no-console
+      console.log('[CopyeditMode] Dispatching effects to CodeMirror')
       viewRef.current.dispatch({
         effects: [
-          toggleFocusMode.of(focusModeEnabled),
-          toggleTypewriterMode.of(typewriterModeEnabled),
-          toggleCopyeditMode.of(copyeditModeEnabled),
+          toggleFocusMode.of(currentFocusMode),
+          toggleTypewriterMode.of(currentTypewriterMode),
+          toggleCopyeditMode.of(currentCopyeditMode),
         ],
       })
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('[CopyeditMode] WARNING: viewRef.current is null')
     }
-  }, [focusModeEnabled, typewriterModeEnabled, copyeditModeEnabled])
+  }, []) // Stable dependency array per architecture guide
+
+  // Subscribe to mode changes using the stable callback
+  useEffect(() => {
+    handleModeChange()
+  }, [
+    handleModeChange,
+    focusModeEnabled,
+    typewriterModeEnabled,
+    copyeditModeEnabled,
+  ])
 
   // Track Alt key state for URL highlighting - moved back to component for timing
   useEffect(() => {

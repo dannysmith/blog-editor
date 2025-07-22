@@ -9,6 +9,8 @@ import {
 import type { Range } from '@codemirror/state'
 import nlp from 'compromise'
 
+/* eslint-disable no-console */
+
 // Type definitions for compromise.js responses
 interface CompromiseOffset {
   start: number
@@ -16,7 +18,12 @@ interface CompromiseOffset {
 }
 
 interface CompromiseMatch {
+  text(): string
   offset?: CompromiseOffset
+}
+
+interface CompromiseDocument {
+  match(pattern: string): CompromiseMatch[]
 }
 
 // State effects for copyedit mode control
@@ -28,6 +35,7 @@ export const copyeditModeState = StateField.define<{
   enabled: boolean
 }>({
   create() {
+    console.log('[CopyeditMode] StateField created with enabled: false')
     return { enabled: false }
   },
 
@@ -37,8 +45,21 @@ export const copyeditModeState = StateField.define<{
     // Handle copyedit mode toggle effects
     for (const effect of tr.effects) {
       if (effect.is(toggleCopyeditMode)) {
+        console.log(
+          '[CopyeditMode] StateField received toggle effect:',
+          effect.value
+        )
         newValue = { ...newValue, enabled: effect.value }
       }
+    }
+
+    if (newValue.enabled !== value.enabled) {
+      console.log(
+        '[CopyeditMode] StateField state changed from',
+        value.enabled,
+        'to',
+        newValue.enabled
+      )
     }
 
     return newValue
@@ -48,6 +69,7 @@ export const copyeditModeState = StateField.define<{
 // Copyedit mode decorations
 export const copyeditModeDecorations = StateField.define<DecorationSet>({
   create() {
+    console.log('[CopyeditMode] Decorations field created')
     return Decoration.none
   },
 
@@ -61,6 +83,7 @@ export const copyeditModeDecorations = StateField.define<DecorationSet>({
     // Handle explicit decoration updates
     for (const effect of tr.effects) {
       if (effect.is(updatePosDecorations)) {
+        console.log('[CopyeditMode] Received decoration update effect')
         return effect.value
       }
     }
@@ -125,39 +148,84 @@ function isExcludedContent(text: string, from: number, to: number): boolean {
  * Create decorations for parts of speech highlighting
  */
 function createPosDecorations(text: string): DecorationSet {
+  console.log(
+    '[CopyeditMode] Creating POS decorations for text length:',
+    text.length
+  )
   const marks: Range<Decoration>[] = []
+  const processedRanges = new Set<string>() // Track ranges to avoid duplicates
 
   try {
     // Parse the text with compromise.js
-    const doc = nlp(text)
+    const doc = nlp(text) as CompromiseDocument
 
-    // Find nouns
-    const nouns = doc.match('#Noun').json() as CompromiseMatch[]
-    for (const noun of nouns) {
-      const offset = noun.offset || { start: 0, length: 0 }
-      const from = offset.start
-      const to = offset.start + offset.length
+    // Process each part of speech type
+    const posTypes = [
+      { matcher: '#Noun', className: 'cm-pos-noun', label: 'noun' },
+      { matcher: '#Verb', className: 'cm-pos-verb', label: 'verb' },
+    ]
 
-      if (!isExcludedContent(text, from, to)) {
-        marks.push(Decoration.mark({ class: 'cm-pos-noun' }).range(from, to))
-      }
+    for (const posType of posTypes) {
+      const matches = doc.match(posType.matcher)
+      console.log(
+        '[CopyeditMode] Found',
+        matches.length,
+        posType.label,
+        'matches'
+      )
+
+      // Use Compromise's offset information when available, fall back to indexOf
+      matches.forEach((match: CompromiseMatch) => {
+        const matchText = match.text()
+        if (!matchText || matchText.trim().length === 0) {
+          return
+        }
+
+        // Try to get offset from Compromise first
+        const offset = match.offset
+        if (offset && offset.start >= 0 && offset.length > 0) {
+          const from = offset.start
+          const to = offset.start + offset.length
+          const rangeKey = `${from}-${to}`
+
+          // Skip if we've already processed this range
+          if (processedRanges.has(rangeKey)) {
+            return
+          }
+
+          if (!isExcludedContent(text, from, to)) {
+            marks.push(
+              Decoration.mark({ class: posType.className }).range(from, to)
+            )
+            processedRanges.add(rangeKey)
+          }
+        } else {
+          // Fallback: find first occurrence only (not all occurrences)
+          const position = text.indexOf(matchText)
+          if (position !== -1) {
+            const from = position
+            const to = position + matchText.length
+            const rangeKey = `${from}-${to}`
+
+            // Skip if we've already processed this range
+            if (processedRanges.has(rangeKey)) {
+              return
+            }
+
+            if (!isExcludedContent(text, from, to)) {
+              marks.push(
+                Decoration.mark({ class: posType.className }).range(from, to)
+              )
+              processedRanges.add(rangeKey)
+            }
+          }
+        }
+      })
     }
 
-    // Find verbs
-    const verbs = doc.match('#Verb').json() as CompromiseMatch[]
-    for (const verb of verbs) {
-      const offset = verb.offset || { start: 0, length: 0 }
-      const from = offset.start
-      const to = offset.start + offset.length
-
-      if (!isExcludedContent(text, from, to)) {
-        marks.push(Decoration.mark({ class: 'cm-pos-verb' }).range(from, to))
-      }
-    }
+    console.log('[CopyeditMode] Total decorations created:', marks.length)
   } catch (error) {
-    // Error handling for NLP processing - avoid console statements in production
-    // TODO: Add proper error reporting system
-    void error
+    console.error('[CopyeditMode] Error in NLP processing:', error)
   }
 
   return Decoration.set(marks, true)
@@ -168,14 +236,36 @@ export const copyeditModePlugin = ViewPlugin.fromClass(
   class {
     private timeoutId: number | null = null
 
-    constructor(public view: EditorView) {}
+    constructor(public view: EditorView) {
+      console.log('[CopyeditMode] Plugin constructed')
+    }
 
     update(update: ViewUpdate) {
       const state = update.state.field(copyeditModeState)
-      if (!state.enabled) return
+      const prevState = update.startState.field(copyeditModeState)
+      console.log(
+        '[CopyeditMode] Plugin update - enabled:',
+        state.enabled,
+        'docChanged:',
+        update.docChanged
+      )
 
-      // Only process if document changed
-      if (update.docChanged) {
+      if (!state.enabled) {
+        console.log('[CopyeditMode] Plugin skipping update - mode disabled')
+        return
+      }
+
+      // Check if mode was just enabled
+      const justEnabled = state.enabled && !prevState.enabled
+      if (justEnabled) {
+        console.log(
+          '[CopyeditMode] Mode just enabled, scheduling initial analysis'
+        )
+        this.scheduleAnalysis()
+      }
+      // Or if document changed while mode is on
+      else if (update.docChanged) {
+        console.log('[CopyeditMode] Document changed, scheduling analysis')
         this.scheduleAnalysis()
       }
     }
@@ -185,21 +275,25 @@ export const copyeditModePlugin = ViewPlugin.fromClass(
         clearTimeout(this.timeoutId)
       }
 
+      console.log('[CopyeditMode] Scheduling analysis in 300ms')
       this.timeoutId = window.setTimeout(() => {
         this.analyzeDocument()
       }, 300) // 300ms debounce
     }
 
     analyzeDocument() {
+      console.log('[CopyeditMode] Analyzing document')
       const doc = this.view.state.doc.toString()
       const decorations = createPosDecorations(doc)
 
+      console.log('[CopyeditMode] Dispatching decoration update')
       this.view.dispatch({
         effects: updatePosDecorations.of(decorations),
       })
     }
 
     destroy() {
+      console.log('[CopyeditMode] Plugin destroyed')
       if (this.timeoutId !== null) {
         clearTimeout(this.timeoutId)
       }
@@ -209,5 +303,6 @@ export const copyeditModePlugin = ViewPlugin.fromClass(
 
 // Combined copyedit mode extension
 export function createCopyeditModeExtension() {
+  console.log('[CopyeditMode] Creating extension')
   return [copyeditModeState, copyeditModeDecorations, copyeditModePlugin]
 }

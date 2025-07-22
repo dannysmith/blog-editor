@@ -73,7 +73,9 @@ export const createExtensions = (config: ExtensionConfig) => {
     // Writing modes - Always include extensions, toggle via state
     ...createFocusModeExtension(),
     ...createTypewriterModeExtension(),
-    ...createCopyeditModeExtension(),
+    // eslint-disable-next-line no-console
+    ...(console.log('[CopyeditMode] Adding to extensions array'),
+    createCopyeditModeExtension()),
 
     // Theme and styling
     createEditorTheme(),

@@ -54,7 +54,17 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
 
   toggleCopyeditMode: () => {
-    set(state => ({ copyeditModeEnabled: !state.copyeditModeEnabled }))
+    set(state => {
+      const newState = !state.copyeditModeEnabled
+      // eslint-disable-next-line no-console
+      console.log(
+        '[CopyeditMode] UI Store toggling from',
+        state.copyeditModeEnabled,
+        'to',
+        newState
+      )
+      return { copyeditModeEnabled: newState }
+    })
   },
 
   setDistractionFreeBarsHidden: (hidden: boolean) => {

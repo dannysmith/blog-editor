@@ -5,43 +5,23 @@
  */
 
 .cm-pos-noun {
-  background-color: var(--editor-color-red);
-  color: var(--editor-color-background);
-  opacity: 0.8;
-  border-radius: 2px;
-  padding: 0 1px;
+  color: var(--editor-color-red);
 }
 
 .cm-pos-verb {
-  background-color: var(--editor-color-blue);
-  color: var(--editor-color-background);
-  opacity: 0.8;
-  border-radius: 2px;
-  padding: 0 1px;
+  color: var(--editor-color-blue);
 }
 
 .cm-pos-adjective {
-  background-color: var(--editor-color-brown);
-  color: var(--editor-color-background);
-  opacity: 0.8;
-  border-radius: 2px;
-  padding: 0 1px;
+  color: var(--editor-color-brown);
 }
 
 .cm-pos-adverb {
-  background-color: var(--editor-color-pink);
-  color: var(--editor-color-background);
-  opacity: 0.8;
-  border-radius: 2px;
-  padding: 0 1px;
+  color: var(--editor-color-pink);
 }
 
 .cm-pos-conjunction {
-  background-color: var(--editor-color-green);
-  color: var(--editor-color-background);
-  opacity: 0.8;
-  border-radius: 2px;
-  padding: 0 1px;
+  color: var(--editor-color-green);
 }
 
 /* Excluded content styling - muted appearance */

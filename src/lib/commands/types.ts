@@ -27,6 +27,7 @@ export interface CommandContext {
   openPreferences: () => void
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void
+  toggleCopyeditMode: () => void
 
   // Future extensibility
   editorSelection?: {
