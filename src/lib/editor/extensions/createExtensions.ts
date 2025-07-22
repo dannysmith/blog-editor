@@ -11,6 +11,7 @@ import { createKeymapExtensions } from './keymap'
 import { createEditorTheme } from './theme'
 import { createFocusModeExtension } from './focus-mode'
 import { createTypewriterModeExtension } from './typewriter-mode'
+import { createCopyeditModeExtension } from './copyedit-mode'
 
 /**
  * Configuration for creating editor extensions
@@ -72,6 +73,7 @@ export const createExtensions = (config: ExtensionConfig) => {
     // Writing modes - Always include extensions, toggle via state
     ...createFocusModeExtension(),
     ...createTypewriterModeExtension(),
+    ...createCopyeditModeExtension(),
 
     // Theme and styling
     createEditorTheme(),

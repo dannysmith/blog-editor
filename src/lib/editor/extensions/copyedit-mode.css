@@ -1,0 +1,51 @@
+/**
+ * Copyedit Mode Styles
+ * 
+ * Parts of speech highlighting using editor CSS variables for theme compatibility
+ */
+
+.cm-pos-noun {
+  background-color: var(--editor-color-red);
+  color: var(--editor-color-background);
+  opacity: 0.8;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.cm-pos-verb {
+  background-color: var(--editor-color-blue);
+  color: var(--editor-color-background);
+  opacity: 0.8;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.cm-pos-adjective {
+  background-color: var(--editor-color-brown);
+  color: var(--editor-color-background);
+  opacity: 0.8;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.cm-pos-adverb {
+  background-color: var(--editor-color-pink);
+  color: var(--editor-color-background);
+  opacity: 0.8;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.cm-pos-conjunction {
+  background-color: var(--editor-color-green);
+  color: var(--editor-color-background);
+  opacity: 0.8;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* Excluded content styling - muted appearance */
+.cm-pos-excluded {
+  color: var(--editor-color-mdtag);
+  background: none;
+}

@@ -33,6 +33,7 @@ describe('CommandRegistry', () => {
       }),
       toggleFocusMode: vi.fn(() => true),
       toggleTypewriterMode: vi.fn(() => true),
+      toggleCopyeditMode: vi.fn(() => true),
     }
   })
 

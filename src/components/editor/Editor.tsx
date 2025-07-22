@@ -12,7 +12,9 @@ import {
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
 import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
+import { toggleCopyeditMode } from '../../lib/editor/extensions/copyedit-mode'
 import './Editor.css'
+import '../../lib/editor/extensions/copyedit-mode.css'
 
 // Extend window to include editor focus tracking
 declare global {
@@ -25,6 +27,7 @@ const EditorViewComponent: React.FC = () => {
   const currentFileId = useEditorStore(state => state.currentFile?.id)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
+  const copyeditModeEnabled = useUIStore(state => state.copyeditModeEnabled)
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const [isAltPressed, setIsAltPressed] = useState(false)
@@ -68,10 +71,11 @@ const EditorViewComponent: React.FC = () => {
         effects: [
           toggleFocusMode.of(focusModeEnabled),
           toggleTypewriterMode.of(typewriterModeEnabled),
+          toggleCopyeditMode.of(copyeditModeEnabled),
         ],
       })
     }
-  }, [focusModeEnabled, typewriterModeEnabled])
+  }, [focusModeEnabled, typewriterModeEnabled, copyeditModeEnabled])
 
   // Track Alt key state for URL highlighting - moved back to component for timing
   useEffect(() => {

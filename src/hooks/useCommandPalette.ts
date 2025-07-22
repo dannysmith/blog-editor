@@ -18,7 +18,7 @@ export function useCommandPalette(searchValue = '') {
     (value: boolean | ((prev: boolean) => boolean)) => {
       const newValue = typeof value === 'boolean' ? value : value(open)
       setOpen(value)
-      
+
       // Show bars when command palette opens
       if (newValue) {
         setDistractionFreeBarsHidden(false)
