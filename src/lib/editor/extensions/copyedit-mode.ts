@@ -305,6 +305,156 @@ function createPosDecorations(text: string): DecorationSet {
       }
     })
 
+    // Process adjectives for copyediting analysis
+    const adjectives = doc.match('#Adjective')
+    console.log('[CopyeditMode] Found', adjectives.length, 'adjectives')
+
+    adjectives.forEach((match: CompromiseMatch) => {
+      const matchText = match.text()
+      if (!matchText || matchText.trim().length === 0) {
+        return
+      }
+
+      // Try to get offset from Compromise first
+      const offset = match.offset
+      if (offset && offset.start >= 0 && offset.length > 0) {
+        const from = offset.start
+        const to = offset.start + offset.length
+        const rangeKey = `${from}-${to}`
+
+        // Skip if we've already processed this range
+        if (processedRanges.has(rangeKey)) {
+          return
+        }
+
+        if (!isExcludedContent(text, from, to)) {
+          marks.push(
+            Decoration.mark({ class: 'cm-pos-adjective' }).range(from, to)
+          )
+          processedRanges.add(rangeKey)
+        }
+      } else {
+        // Fallback: find first occurrence only
+        const position = text.indexOf(matchText)
+        if (position !== -1) {
+          const from = position
+          const to = position + matchText.length
+          const rangeKey = `${from}-${to}`
+
+          if (processedRanges.has(rangeKey)) {
+            return
+          }
+
+          if (!isExcludedContent(text, from, to)) {
+            marks.push(
+              Decoration.mark({ class: 'cm-pos-adjective' }).range(from, to)
+            )
+            processedRanges.add(rangeKey)
+          }
+        }
+      }
+    })
+
+    // Process adverbs for writing style analysis
+    const adverbs = doc.match('#Adverb')
+    console.log('[CopyeditMode] Found', adverbs.length, 'adverbs')
+
+    adverbs.forEach((match: CompromiseMatch) => {
+      const matchText = match.text()
+      if (!matchText || matchText.trim().length === 0) {
+        return
+      }
+
+      // Try to get offset from Compromise first
+      const offset = match.offset
+      if (offset && offset.start >= 0 && offset.length > 0) {
+        const from = offset.start
+        const to = offset.start + offset.length
+        const rangeKey = `${from}-${to}`
+
+        // Skip if we've already processed this range
+        if (processedRanges.has(rangeKey)) {
+          return
+        }
+
+        if (!isExcludedContent(text, from, to)) {
+          marks.push(
+            Decoration.mark({ class: 'cm-pos-adverb' }).range(from, to)
+          )
+          processedRanges.add(rangeKey)
+        }
+      } else {
+        // Fallback: find first occurrence only
+        const position = text.indexOf(matchText)
+        if (position !== -1) {
+          const from = position
+          const to = position + matchText.length
+          const rangeKey = `${from}-${to}`
+
+          if (processedRanges.has(rangeKey)) {
+            return
+          }
+
+          if (!isExcludedContent(text, from, to)) {
+            marks.push(
+              Decoration.mark({ class: 'cm-pos-adverb' }).range(from, to)
+            )
+            processedRanges.add(rangeKey)
+          }
+        }
+      }
+    })
+
+    // Process conjunctions for sentence flow analysis
+    const conjunctions = doc.match('#Conjunction')
+    console.log('[CopyeditMode] Found', conjunctions.length, 'conjunctions')
+
+    conjunctions.forEach((match: CompromiseMatch) => {
+      const matchText = match.text()
+      if (!matchText || matchText.trim().length === 0) {
+        return
+      }
+
+      // Try to get offset from Compromise first
+      const offset = match.offset
+      if (offset && offset.start >= 0 && offset.length > 0) {
+        const from = offset.start
+        const to = offset.start + offset.length
+        const rangeKey = `${from}-${to}`
+
+        // Skip if we've already processed this range
+        if (processedRanges.has(rangeKey)) {
+          return
+        }
+
+        if (!isExcludedContent(text, from, to)) {
+          marks.push(
+            Decoration.mark({ class: 'cm-pos-conjunction' }).range(from, to)
+          )
+          processedRanges.add(rangeKey)
+        }
+      } else {
+        // Fallback: find first occurrence only
+        const position = text.indexOf(matchText)
+        if (position !== -1) {
+          const from = position
+          const to = position + matchText.length
+          const rangeKey = `${from}-${to}`
+
+          if (processedRanges.has(rangeKey)) {
+            return
+          }
+
+          if (!isExcludedContent(text, from, to)) {
+            marks.push(
+              Decoration.mark({ class: 'cm-pos-conjunction' }).range(from, to)
+            )
+            processedRanges.add(rangeKey)
+          }
+        }
+      }
+    })
+
     console.log('[CopyeditMode] Total decorations created:', marks.length)
   } catch (error) {
     console.error('[CopyeditMode] Error in NLP processing:', error)
