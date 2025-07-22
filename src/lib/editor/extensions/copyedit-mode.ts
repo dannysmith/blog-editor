@@ -22,8 +22,13 @@ interface CompromiseMatch {
   offset?: CompromiseOffset
 }
 
+interface CompromiseMatches {
+  length: number
+  forEach(callback: (match: CompromiseMatch) => void): void
+}
+
 interface CompromiseDocument {
-  match(pattern: string): CompromiseMatch[]
+  match(pattern: string): CompromiseMatches
 }
 
 // State effects for copyedit mode control
@@ -159,69 +164,146 @@ function createPosDecorations(text: string): DecorationSet {
     // Parse the text with compromise.js
     const doc = nlp(text) as CompromiseDocument
 
-    // Process each part of speech type
-    const posTypes = [
-      { matcher: '#Noun', className: 'cm-pos-noun', label: 'noun' },
-      { matcher: '#Verb', className: 'cm-pos-verb', label: 'verb' },
-    ]
+    // Process nouns (exclude pronouns for copyediting relevance)
+    const allNouns = doc.match('#Noun')
+    const pronouns = doc.match('#Pronoun')
 
-    for (const posType of posTypes) {
-      const matches = doc.match(posType.matcher)
-      console.log(
-        '[CopyeditMode] Found',
-        matches.length,
-        posType.label,
-        'matches'
-      )
+    // Create set of pronoun texts for exclusion
+    const pronounTexts = new Set<string>()
+    pronouns.forEach((pronoun: CompromiseMatch) => {
+      const text = pronoun.text()
+      if (text) {
+        pronounTexts.add(text.toLowerCase())
+      }
+    })
 
-      // Use Compromise's offset information when available, fall back to indexOf
-      matches.forEach((match: CompromiseMatch) => {
-        const matchText = match.text()
-        if (!matchText || matchText.trim().length === 0) {
+    console.log('[CopyeditMode] Found', allNouns.length, 'total nouns')
+    console.log('[CopyeditMode] Excluding', pronouns.length, 'pronouns')
+
+    allNouns.forEach((match: CompromiseMatch) => {
+      const matchText = match.text()
+      if (
+        !matchText ||
+        matchText.trim().length === 0 ||
+        pronounTexts.has(matchText.toLowerCase())
+      ) {
+        return
+      }
+
+      // Try to get offset from Compromise first
+      const offset = match.offset
+      if (offset && offset.start >= 0 && offset.length > 0) {
+        const from = offset.start
+        const to = offset.start + offset.length
+        const rangeKey = `${from}-${to}`
+
+        // Skip if we've already processed this range
+        if (processedRanges.has(rangeKey)) {
           return
         }
 
-        // Try to get offset from Compromise first
-        const offset = match.offset
-        if (offset && offset.start >= 0 && offset.length > 0) {
-          const from = offset.start
-          const to = offset.start + offset.length
+        if (!isExcludedContent(text, from, to)) {
+          marks.push(Decoration.mark({ class: 'cm-pos-noun' }).range(from, to))
+          processedRanges.add(rangeKey)
+        }
+      } else {
+        // Fallback: find first occurrence only
+        const position = text.indexOf(matchText)
+        if (position !== -1) {
+          const from = position
+          const to = position + matchText.length
           const rangeKey = `${from}-${to}`
 
-          // Skip if we've already processed this range
           if (processedRanges.has(rangeKey)) {
             return
           }
 
           if (!isExcludedContent(text, from, to)) {
             marks.push(
-              Decoration.mark({ class: posType.className }).range(from, to)
+              Decoration.mark({ class: 'cm-pos-noun' }).range(from, to)
             )
             processedRanges.add(rangeKey)
           }
-        } else {
-          // Fallback: find first occurrence only (not all occurrences)
-          const position = text.indexOf(matchText)
-          if (position !== -1) {
-            const from = position
-            const to = position + matchText.length
-            const rangeKey = `${from}-${to}`
+        }
+      }
+    })
 
-            // Skip if we've already processed this range
-            if (processedRanges.has(rangeKey)) {
-              return
-            }
+    // Process verbs (exclude auxiliaries and modals for copyediting relevance)
+    const allVerbs = doc.match('#Verb')
+    const auxiliaries = doc.match('#Auxiliary')
+    const modals = doc.match('#Modal')
 
-            if (!isExcludedContent(text, from, to)) {
-              marks.push(
-                Decoration.mark({ class: posType.className }).range(from, to)
-              )
-              processedRanges.add(rangeKey)
-            }
+    // Create set of excluded verb texts
+    const excludedVerbTexts = new Set<string>()
+    auxiliaries.forEach((aux: CompromiseMatch) => {
+      const text = aux.text()
+      if (text) {
+        excludedVerbTexts.add(text.toLowerCase())
+      }
+    })
+    modals.forEach((modal: CompromiseMatch) => {
+      const text = modal.text()
+      if (text) {
+        excludedVerbTexts.add(text.toLowerCase())
+      }
+    })
+
+    console.log('[CopyeditMode] Found', allVerbs.length, 'total verbs')
+    console.log(
+      '[CopyeditMode] Excluding',
+      auxiliaries.length,
+      'auxiliaries and',
+      modals.length,
+      'modals'
+    )
+
+    allVerbs.forEach((match: CompromiseMatch) => {
+      const matchText = match.text()
+      if (
+        !matchText ||
+        matchText.trim().length === 0 ||
+        excludedVerbTexts.has(matchText.toLowerCase())
+      ) {
+        return
+      }
+
+      // Try to get offset from Compromise first
+      const offset = match.offset
+      if (offset && offset.start >= 0 && offset.length > 0) {
+        const from = offset.start
+        const to = offset.start + offset.length
+        const rangeKey = `${from}-${to}`
+
+        // Skip if we've already processed this range
+        if (processedRanges.has(rangeKey)) {
+          return
+        }
+
+        if (!isExcludedContent(text, from, to)) {
+          marks.push(Decoration.mark({ class: 'cm-pos-verb' }).range(from, to))
+          processedRanges.add(rangeKey)
+        }
+      } else {
+        // Fallback: find first occurrence only
+        const position = text.indexOf(matchText)
+        if (position !== -1) {
+          const from = position
+          const to = position + matchText.length
+          const rangeKey = `${from}-${to}`
+
+          if (processedRanges.has(rangeKey)) {
+            return
+          }
+
+          if (!isExcludedContent(text, from, to)) {
+            marks.push(
+              Decoration.mark({ class: 'cm-pos-verb' }).range(from, to)
+            )
+            processedRanges.add(rangeKey)
           }
         }
-      })
-    }
+      }
+    })
 
     console.log('[CopyeditMode] Total decorations created:', marks.length)
   } catch (error) {
