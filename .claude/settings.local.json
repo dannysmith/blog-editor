@@ -31,7 +31,8 @@
       "Bash(touch:*)",
       "Bash(npm test:*)",
       "Bash(true)",
-      "Bash(rmdir:*)"
+      "Bash(rmdir:*)",
+      "WebFetch(domain:ia.net)"
     ],
     "deny": []
   }

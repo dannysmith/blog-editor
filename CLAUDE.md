@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Current Task: `/docs/tasks-todo/task-6-layoutrefactor.md`
+Current Task: `/docs/tasks-todo/task-7-copyedit-mode.md`
 
 ## Project Overview
 
