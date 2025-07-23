@@ -199,6 +199,10 @@ export function useLayoutEventListeners() {
       console.log('[CopyeditMode] New state:', newState)
     }
 
+    const handleToggleSpellCheck = () => {
+      useUIStore.getState().toggleSpellCheck()
+    }
+
     const handleFileOpened = (event: Event) => {
       const customEvent = event as CustomEvent<{ collectionName: string }>
       const { collectionName } = customEvent.detail
@@ -213,6 +217,7 @@ export function useLayoutEventListeners() {
       handleToggleTypewriterMode
     )
     window.addEventListener('toggle-copyedit-mode', handleToggleCopyeditMode)
+    window.addEventListener('toggle-spell-check', handleToggleSpellCheck)
     window.addEventListener('file-opened', handleFileOpened)
 
     return () => {
@@ -225,6 +230,7 @@ export function useLayoutEventListeners() {
         'toggle-copyedit-mode',
         handleToggleCopyeditMode
       )
+      window.removeEventListener('toggle-spell-check', handleToggleSpellCheck)
       window.removeEventListener('file-opened', handleFileOpened)
     }
   }, [])

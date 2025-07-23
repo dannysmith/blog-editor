@@ -28,6 +28,7 @@ const EditorViewComponent: React.FC = () => {
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
   const copyeditModeEnabled = useUIStore(state => state.copyeditModeEnabled)
+  const spellCheckEnabled = useUIStore(state => state.spellCheckEnabled)
 
   // eslint-disable-next-line no-console
   console.log(
@@ -65,7 +66,8 @@ const EditorViewComponent: React.FC = () => {
     handleSave,
     handleFocus,
     handleBlur,
-    componentBuilderHandler
+    componentBuilderHandler,
+    spellCheckEnabled
   )
 
   useTauriListeners(viewRef.current)
