@@ -45,10 +45,15 @@ export interface ProjectRegistry {
   version: number
 }
 
+export type PartOfSpeech = 'nouns' | 'verbs' | 'adjectives' | 'adverbs' | 'conjunctions'
+
 export interface GlobalSettings {
   general: {
     ideCommand: string
     theme: 'light' | 'dark' | 'system'
+    copyedit: {
+      enabledPartsOfSpeech: PartOfSpeech[]
+    }
   }
   // Default settings that apply to new projects
   defaultProjectSettings: ProjectSettings

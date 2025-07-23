@@ -67,6 +67,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     })
   },
 
+
   setDistractionFreeBarsHidden: (hidden: boolean) => {
     set({ distractionFreeBarsHidden: hidden })
   },

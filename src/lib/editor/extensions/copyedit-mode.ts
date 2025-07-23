@@ -8,6 +8,8 @@ import {
 } from '@codemirror/view'
 import type { Range } from '@codemirror/state'
 import nlp from 'compromise'
+import { useUIStore } from '../../store/uiStore'
+import { useProjectStore } from '../../../store/projectStore'
 
 /* eslint-disable no-console */
 
@@ -34,6 +36,7 @@ interface CompromiseDocument {
 // State effects for copyedit mode control
 export const toggleCopyeditMode = StateEffect.define<boolean>()
 export const updatePosDecorations = StateEffect.define<DecorationSet>()
+export const updateEnabledPartsOfSpeech = StateEffect.define<Set<string>>()
 
 // State field to track copyedit mode state
 export const copyeditModeState = StateField.define<{
@@ -152,7 +155,7 @@ function isExcludedContent(text: string, from: number, to: number): boolean {
 /**
  * Create decorations for parts of speech highlighting
  */
-function createPosDecorations(text: string): DecorationSet {
+function createPosDecorations(text: string, enabledPartsOfSpeech: Set<string>): DecorationSet {
   console.log(
     '[CopyeditMode] Creating POS decorations for text length:',
     text.length
@@ -165,22 +168,23 @@ function createPosDecorations(text: string): DecorationSet {
     const doc = nlp(text) as CompromiseDocument
 
     // Process nouns (exclude pronouns for copyediting relevance)
-    const allNouns = doc.match('#Noun')
-    const pronouns = doc.match('#Pronoun')
+    if (enabledPartsOfSpeech.has('nouns')) {
+      const allNouns = doc.match('#Noun')
+      const pronouns = doc.match('#Pronoun')
 
-    // Create set of pronoun texts for exclusion
-    const pronounTexts = new Set<string>()
-    pronouns.forEach((pronoun: CompromiseMatch) => {
-      const text = pronoun.text()
-      if (text) {
-        pronounTexts.add(text.toLowerCase())
-      }
-    })
+      // Create set of pronoun texts for exclusion
+      const pronounTexts = new Set<string>()
+      pronouns.forEach((pronoun: CompromiseMatch) => {
+        const text = pronoun.text()
+        if (text) {
+          pronounTexts.add(text.toLowerCase())
+        }
+      })
 
-    console.log('[CopyeditMode] Found', allNouns.length, 'total nouns')
-    console.log('[CopyeditMode] Excluding', pronouns.length, 'pronouns')
+      console.log('[CopyeditMode] Found', allNouns.length, 'total nouns')
+      console.log('[CopyeditMode] Excluding', pronouns.length, 'pronouns')
 
-    allNouns.forEach((match: CompromiseMatch) => {
+      allNouns.forEach((match: CompromiseMatch) => {
       const matchText = match.text()
       if (
         !matchText ||
@@ -229,10 +233,12 @@ function createPosDecorations(text: string): DecorationSet {
           }
         }
       }
-    })
+      })
+    }
 
     // Process verbs (exclude auxiliaries and modals for copyediting relevance)
-    const allVerbs = doc.match('#Verb')
+    if (enabledPartsOfSpeech.has('verbs')) {
+      const allVerbs = doc.match('#Verb')
     const auxiliaries = doc.match('#Auxiliary')
     const modals = doc.match('#Modal')
 
@@ -309,10 +315,12 @@ function createPosDecorations(text: string): DecorationSet {
           }
         }
       }
-    })
+      })
+    }
 
     // Process adjectives for copyediting analysis
-    const adjectives = doc.match('#Adjective')
+    if (enabledPartsOfSpeech.has('adjectives')) {
+      const adjectives = doc.match('#Adjective')
     console.log('[CopyeditMode] Found', adjectives.length, 'adjectives')
 
     adjectives.forEach((match: CompromiseMatch) => {
@@ -362,10 +370,12 @@ function createPosDecorations(text: string): DecorationSet {
           }
         }
       }
-    })
+      })
+    }
 
     // Process adverbs for writing style analysis
-    const adverbs = doc.match('#Adverb')
+    if (enabledPartsOfSpeech.has('adverbs')) {
+      const adverbs = doc.match('#Adverb')
     console.log('[CopyeditMode] Found', adverbs.length, 'adverbs')
 
     adverbs.forEach((match: CompromiseMatch) => {
@@ -415,10 +425,12 @@ function createPosDecorations(text: string): DecorationSet {
           }
         }
       }
-    })
+      })
+    }
 
     // Process conjunctions for sentence flow analysis
-    const conjunctions = doc.match('#Conjunction')
+    if (enabledPartsOfSpeech.has('conjunctions')) {
+      const conjunctions = doc.match('#Conjunction')
     console.log('[CopyeditMode] Found', conjunctions.length, 'conjunctions')
 
     conjunctions.forEach((match: CompromiseMatch) => {
@@ -468,7 +480,8 @@ function createPosDecorations(text: string): DecorationSet {
           }
         }
       }
-    })
+      })
+    }
 
     console.log('[CopyeditMode] Total decorations created:', marks.length)
   } catch (error) {
@@ -478,13 +491,43 @@ function createPosDecorations(text: string): DecorationSet {
   return Decoration.set(marks, true)
 }
 
-// Main copyedit mode plugin with debounced analysis
+
+// Global reference to current view for external updates
+let currentEditorView: EditorView | null = null
+
+// Function to get enabled parts of speech from global settings
+function getEnabledPartsOfSpeech(): Set<string> {
+  const globalSettings = useProjectStore.getState().globalSettings
+  const enabledArray = globalSettings?.general?.copyedit?.enabledPartsOfSpeech || ['nouns', 'verbs', 'adjectives', 'adverbs', 'conjunctions']
+  return new Set(enabledArray)
+}
+
+// Function to trigger re-analysis from external components
+export function updateCopyeditModePartsOfSpeech() {
+  if (currentEditorView) {
+    console.log('[CopyeditMode] External trigger for parts-of-speech update')
+    const state = currentEditorView.state.field(copyeditModeState)
+    if (state.enabled) {
+      // Get enabled parts of speech from global settings
+      const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
+      const doc = currentEditorView.state.doc.toString()
+      const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
+      
+      currentEditorView.dispatch({
+        effects: updatePosDecorations.of(decorations),
+      })
+    }
+  }
+}
+
+// Enhanced copyedit mode plugin with view tracking
 export const copyeditModePlugin = ViewPlugin.fromClass(
   class {
     private timeoutId: number | null = null
 
     constructor(public view: EditorView) {
       console.log('[CopyeditMode] Plugin constructed')
+      currentEditorView = view // Store reference for external access
     }
 
     update(update: ViewUpdate) {
@@ -531,7 +574,11 @@ export const copyeditModePlugin = ViewPlugin.fromClass(
     analyzeDocument() {
       console.log('[CopyeditMode] Analyzing document')
       const doc = this.view.state.doc.toString()
-      const decorations = createPosDecorations(doc)
+      
+      // Get enabled parts of speech from global settings
+      const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
+      
+      const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
 
       console.log('[CopyeditMode] Dispatching decoration update')
       this.view.dispatch({
@@ -543,6 +590,9 @@ export const copyeditModePlugin = ViewPlugin.fromClass(
       console.log('[CopyeditMode] Plugin destroyed')
       if (this.timeoutId !== null) {
         clearTimeout(this.timeoutId)
+      }
+      if (currentEditorView === this.view) {
+        currentEditorView = null // Clear reference
       }
     }
   }

@@ -23,6 +23,9 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   general: {
     ideCommand: '',
     theme: 'system',
+    copyedit: {
+      enabledPartsOfSpeech: ['nouns', 'verbs', 'adjectives', 'adverbs', 'conjunctions'],
+    },
   },
   defaultProjectSettings: DEFAULT_PROJECT_SETTINGS,
   version: 1,
