@@ -25,5 +25,4 @@
 export { createExtensions } from './createExtensions'
 export { createKeymapExtensions } from './keymap'
 export { createEditorTheme } from './theme'
-export { toggleCopyeditMode } from './copyedit-mode'
 export type { ExtensionConfig } from './createExtensions'

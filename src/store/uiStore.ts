@@ -6,7 +6,6 @@ interface UIState {
   frontmatterPanelVisible: boolean
   focusModeEnabled: boolean
   typewriterModeEnabled: boolean
-  copyeditModeEnabled: boolean
   distractionFreeBarsHidden: boolean
 
   // Actions
@@ -14,7 +13,6 @@ interface UIState {
   toggleFrontmatterPanel: () => void
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void
-  toggleCopyeditMode: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
   handleTypingInEditor: () => void
 }
@@ -25,7 +23,6 @@ export const useUIStore = create<UIState>((set, get) => ({
   frontmatterPanelVisible: true,
   focusModeEnabled: false,
   typewriterModeEnabled: false,
-  copyeditModeEnabled: false,
   distractionFreeBarsHidden: false,
 
   // Actions
@@ -52,21 +49,6 @@ export const useUIStore = create<UIState>((set, get) => ({
   toggleTypewriterMode: () => {
     set(state => ({ typewriterModeEnabled: !state.typewriterModeEnabled }))
   },
-
-  toggleCopyeditMode: () => {
-    set(state => {
-      const newState = !state.copyeditModeEnabled
-      // eslint-disable-next-line no-console
-      console.log(
-        '[CopyeditMode] UI Store toggling from',
-        state.copyeditModeEnabled,
-        'to',
-        newState
-      )
-      return { copyeditModeEnabled: newState }
-    })
-  },
-
 
   setDistractionFreeBarsHidden: (hidden: boolean) => {
     set({ distractionFreeBarsHidden: hidden })

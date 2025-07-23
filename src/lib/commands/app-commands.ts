@@ -182,16 +182,75 @@ export const viewModeCommands: AppCommand[] = [
     },
     isAvailable: () => true,
   },
+]
+
+/**
+ * Highlight commands for parts of speech
+ */
+export const highlightCommands: AppCommand[] = [
   {
-    id: 'toggle-copyedit-mode',
-    label: 'Toggle Copyedit Mode',
-    description: 'Highlight parts of speech to analyze writing patterns',
+    id: 'toggle-highlight-nouns',
+    label: 'Highlight Nouns',
+    description: 'Toggle highlighting of nouns in the editor',
     icon: Highlighter,
-    group: 'settings',
+    group: 'highlight',
     execute: (context: CommandContext) => {
-      // eslint-disable-next-line no-console
-      console.log('[CopyeditMode] Command executed from command palette')
-      context.toggleCopyeditMode()
+      context.toggleHighlightNouns()
+    },
+    isAvailable: () => true,
+  },
+  {
+    id: 'toggle-highlight-verbs',
+    label: 'Highlight Verbs',
+    description: 'Toggle highlighting of verbs in the editor',
+    icon: Highlighter,
+    group: 'highlight',
+    execute: (context: CommandContext) => {
+      context.toggleHighlightVerbs()
+    },
+    isAvailable: () => true,
+  },
+  {
+    id: 'toggle-highlight-adjectives',
+    label: 'Highlight Adjectives',
+    description: 'Toggle highlighting of adjectives in the editor',
+    icon: Highlighter,
+    group: 'highlight',
+    execute: (context: CommandContext) => {
+      context.toggleHighlightAdjectives()
+    },
+    isAvailable: () => true,
+  },
+  {
+    id: 'toggle-highlight-adverbs',
+    label: 'Highlight Adverbs',
+    description: 'Toggle highlighting of adverbs in the editor',
+    icon: Highlighter,
+    group: 'highlight',
+    execute: (context: CommandContext) => {
+      context.toggleHighlightAdverbs()
+    },
+    isAvailable: () => true,
+  },
+  {
+    id: 'toggle-highlight-conjunctions',
+    label: 'Highlight Conjunctions',
+    description: 'Toggle highlighting of conjunctions in the editor',
+    icon: Highlighter,
+    group: 'highlight',
+    execute: (context: CommandContext) => {
+      context.toggleHighlightConjunctions()
+    },
+    isAvailable: () => true,
+  },
+  {
+    id: 'toggle-all-highlights',
+    label: 'Toggle All Highlights',
+    description: 'Toggle all part-of-speech highlights on or off together',
+    icon: Highlighter,
+    group: 'highlight',
+    execute: (context: CommandContext) => {
+      context.toggleAllHighlights()
     },
     isAvailable: () => true,
   },
@@ -375,6 +434,7 @@ export function getAllCommands(
     ...projectCommands,
     ...settingsCommands,
     ...viewModeCommands,
+    ...highlightCommands,
     ...ideCommands,
     ...collectionCommands,
   ].filter(command => command.isAvailable(context))

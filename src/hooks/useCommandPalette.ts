@@ -77,6 +77,7 @@ export function useCommandPalette(searchValue = '') {
       { key: 'navigation', heading: 'Navigation' },
       { key: 'project', heading: 'Project' },
       { key: 'settings', heading: 'Settings' },
+      { key: 'highlight', heading: 'Highlights' },
       { key: 'ide', heading: 'IDE' },
     ]
 

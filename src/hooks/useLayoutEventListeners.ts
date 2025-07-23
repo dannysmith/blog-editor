@@ -10,6 +10,7 @@ import { toast } from '../lib/toast'
 import { initializeRustToastBridge } from '../lib/rust-toast-bridge'
 import { focusEditor } from '../lib/focus-utils'
 import { useCreateFile } from './useCreateFile'
+import { updateCopyeditModePartsOfSpeech } from '../lib/editor/extensions/copyedit-mode'
 
 export function useLayoutEventListeners() {
   const [preferencesOpen, setPreferencesOpen] = useState(false)
@@ -187,16 +188,74 @@ export function useLayoutEventListeners() {
       useUIStore.getState().toggleTypewriterMode()
     }
 
-    const handleToggleCopyeditMode = () => {
-      // eslint-disable-next-line no-console
-      console.log('[CopyeditMode] Event listener triggered')
-      const currentState = useUIStore.getState().copyeditModeEnabled
-      // eslint-disable-next-line no-console
-      console.log('[CopyeditMode] Current state:', currentState)
-      useUIStore.getState().toggleCopyeditMode()
-      const newState = useUIStore.getState().copyeditModeEnabled
-      // eslint-disable-next-line no-console
-      console.log('[CopyeditMode] New state:', newState)
+    const handleToggleHighlight = (
+      partOfSpeech:
+        | 'nouns'
+        | 'verbs'
+        | 'adjectives'
+        | 'adverbs'
+        | 'conjunctions'
+    ) => {
+      const { globalSettings, updateGlobalSettings } =
+        useProjectStore.getState()
+      const currentValue =
+        globalSettings?.general?.highlights?.[partOfSpeech] ?? true
+
+      const newSettings = {
+        general: {
+          ideCommand: globalSettings?.general?.ideCommand || '',
+          theme: globalSettings?.general?.theme || 'system',
+          highlights: {
+            nouns: globalSettings?.general?.highlights?.nouns || true,
+            verbs: globalSettings?.general?.highlights?.verbs || true,
+            adjectives: globalSettings?.general?.highlights?.adjectives || true,
+            adverbs: globalSettings?.general?.highlights?.adverbs || true,
+            conjunctions:
+              globalSettings?.general?.highlights?.conjunctions || true,
+            [partOfSpeech]: !currentValue,
+          },
+        },
+      }
+
+      void updateGlobalSettings(newSettings)
+
+      // Trigger re-analysis in editor
+      setTimeout(() => {
+        updateCopyeditModePartsOfSpeech()
+      }, 0)
+    }
+
+    const handleToggleAllHighlights = () => {
+      const { globalSettings, updateGlobalSettings } =
+        useProjectStore.getState()
+      const highlights = globalSettings?.general?.highlights || {}
+
+      // Check if any are currently enabled
+      const anyEnabled = Object.values(highlights).some(enabled => enabled)
+
+      // If any are enabled, turn all off; otherwise turn all on
+      const newValue = !anyEnabled
+
+      const newSettings = {
+        general: {
+          ideCommand: globalSettings?.general?.ideCommand || '',
+          theme: globalSettings?.general?.theme || 'system',
+          highlights: {
+            nouns: newValue,
+            verbs: newValue,
+            adjectives: newValue,
+            adverbs: newValue,
+            conjunctions: newValue,
+          },
+        },
+      }
+
+      void updateGlobalSettings(newSettings)
+
+      // Trigger re-analysis in editor
+      setTimeout(() => {
+        updateCopyeditModePartsOfSpeech()
+      }, 0)
     }
 
     const handleFileOpened = (event: Event) => {
@@ -212,7 +271,35 @@ export function useLayoutEventListeners() {
       'toggle-typewriter-mode',
       handleToggleTypewriterMode
     )
-    window.addEventListener('toggle-copyedit-mode', handleToggleCopyeditMode)
+    const handleToggleHighlightNouns = () => handleToggleHighlight('nouns')
+    const handleToggleHighlightVerbs = () => handleToggleHighlight('verbs')
+    const handleToggleHighlightAdjectives = () =>
+      handleToggleHighlight('adjectives')
+    const handleToggleHighlightAdverbs = () => handleToggleHighlight('adverbs')
+    const handleToggleHighlightConjunctions = () =>
+      handleToggleHighlight('conjunctions')
+
+    window.addEventListener(
+      'toggle-highlight-nouns',
+      handleToggleHighlightNouns
+    )
+    window.addEventListener(
+      'toggle-highlight-verbs',
+      handleToggleHighlightVerbs
+    )
+    window.addEventListener(
+      'toggle-highlight-adjectives',
+      handleToggleHighlightAdjectives
+    )
+    window.addEventListener(
+      'toggle-highlight-adverbs',
+      handleToggleHighlightAdverbs
+    )
+    window.addEventListener(
+      'toggle-highlight-conjunctions',
+      handleToggleHighlightConjunctions
+    )
+    window.addEventListener('toggle-all-highlights', handleToggleAllHighlights)
     window.addEventListener('file-opened', handleFileOpened)
 
     return () => {
@@ -222,8 +309,28 @@ export function useLayoutEventListeners() {
         handleToggleTypewriterMode
       )
       window.removeEventListener(
-        'toggle-copyedit-mode',
-        handleToggleCopyeditMode
+        'toggle-highlight-nouns',
+        handleToggleHighlightNouns
+      )
+      window.removeEventListener(
+        'toggle-highlight-verbs',
+        handleToggleHighlightVerbs
+      )
+      window.removeEventListener(
+        'toggle-highlight-adjectives',
+        handleToggleHighlightAdjectives
+      )
+      window.removeEventListener(
+        'toggle-highlight-adverbs',
+        handleToggleHighlightAdverbs
+      )
+      window.removeEventListener(
+        'toggle-highlight-conjunctions',
+        handleToggleHighlightConjunctions
+      )
+      window.removeEventListener(
+        'toggle-all-highlights',
+        handleToggleAllHighlights
       )
       window.removeEventListener('file-opened', handleFileOpened)
     }

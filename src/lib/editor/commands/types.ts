@@ -17,7 +17,6 @@ export interface EditorCommandRegistry {
   save: EditorCommand
   toggleFocusMode: EditorCommand
   toggleTypewriterMode: EditorCommand
-  toggleCopyeditMode: EditorCommand
 }
 
 /**

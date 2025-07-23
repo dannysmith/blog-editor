@@ -66,17 +66,6 @@ export const createTypewriterModeCommand = (): EditorCommand => {
 }
 
 /**
- * Create a copyedit mode toggle command
- */
-export const createCopyeditModeCommand = (): EditorCommand => {
-  return () => {
-    const toggleCopyeditMode = useUIStore.getState().toggleCopyeditMode
-    toggleCopyeditMode()
-    return true
-  }
-}
-
-/**
  * Create a complete editor command registry
  */
 export const createEditorCommandRegistry = (
@@ -90,6 +79,5 @@ export const createEditorCommandRegistry = (
     save: createSaveCommand(onSave),
     toggleFocusMode: createFocusModeCommand(),
     toggleTypewriterMode: createTypewriterModeCommand(),
-    toggleCopyeditMode: createCopyeditModeCommand(),
   }
 }

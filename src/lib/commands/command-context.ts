@@ -63,10 +63,23 @@ export function useCommandContext(): CommandContext {
     toggleTypewriterMode: () => {
       window.dispatchEvent(new CustomEvent('toggle-typewriter-mode'))
     },
-    toggleCopyeditMode: () => {
-      // eslint-disable-next-line no-console
-      console.log('[CopyeditMode] Dispatching toggle-copyedit-mode event')
-      window.dispatchEvent(new CustomEvent('toggle-copyedit-mode'))
+    toggleHighlightNouns: () => {
+      window.dispatchEvent(new CustomEvent('toggle-highlight-nouns'))
+    },
+    toggleHighlightVerbs: () => {
+      window.dispatchEvent(new CustomEvent('toggle-highlight-verbs'))
+    },
+    toggleHighlightAdjectives: () => {
+      window.dispatchEvent(new CustomEvent('toggle-highlight-adjectives'))
+    },
+    toggleHighlightAdverbs: () => {
+      window.dispatchEvent(new CustomEvent('toggle-highlight-adverbs'))
+    },
+    toggleHighlightConjunctions: () => {
+      window.dispatchEvent(new CustomEvent('toggle-highlight-conjunctions'))
+    },
+    toggleAllHighlights: () => {
+      window.dispatchEvent(new CustomEvent('toggle-all-highlights'))
     },
     // Future: editor selection context could be added here
   }

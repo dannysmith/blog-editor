@@ -8,7 +8,6 @@ import {
 } from '@codemirror/view'
 import type { Range } from '@codemirror/state'
 import nlp from 'compromise'
-import { useUIStore } from '../../store/uiStore'
 import { useProjectStore } from '../../../store/projectStore'
 
 /* eslint-disable no-console */
@@ -33,65 +32,21 @@ interface CompromiseDocument {
   match(pattern: string): CompromiseMatches
 }
 
-// State effects for copyedit mode control
-export const toggleCopyeditMode = StateEffect.define<boolean>()
+// State effects for highlight control
 export const updatePosDecorations = StateEffect.define<DecorationSet>()
-export const updateEnabledPartsOfSpeech = StateEffect.define<Set<string>>()
 
-// State field to track copyedit mode state
-export const copyeditModeState = StateField.define<{
-  enabled: boolean
-}>({
+// Highlight decorations
+export const highlightDecorations = StateField.define<DecorationSet>({
   create() {
-    console.log('[CopyeditMode] StateField created with enabled: false')
-    return { enabled: false }
-  },
-
-  update(value, tr) {
-    let newValue = value
-
-    // Handle copyedit mode toggle effects
-    for (const effect of tr.effects) {
-      if (effect.is(toggleCopyeditMode)) {
-        console.log(
-          '[CopyeditMode] StateField received toggle effect:',
-          effect.value
-        )
-        newValue = { ...newValue, enabled: effect.value }
-      }
-    }
-
-    if (newValue.enabled !== value.enabled) {
-      console.log(
-        '[CopyeditMode] StateField state changed from',
-        value.enabled,
-        'to',
-        newValue.enabled
-      )
-    }
-
-    return newValue
-  },
-})
-
-// Copyedit mode decorations
-export const copyeditModeDecorations = StateField.define<DecorationSet>({
-  create() {
-    console.log('[CopyeditMode] Decorations field created')
+    console.log('[Highlights] Decorations field created')
     return Decoration.none
   },
 
   update(decorations: DecorationSet, tr: Transaction) {
-    const copyeditState = tr.state.field(copyeditModeState)
-
-    if (!copyeditState.enabled) {
-      return Decoration.none
-    }
-
     // Handle explicit decoration updates
     for (const effect of tr.effects) {
       if (effect.is(updatePosDecorations)) {
-        console.log('[CopyeditMode] Received decoration update effect')
+        console.log('[Highlights] Received decoration update effect')
         return effect.value
       }
     }
@@ -155,7 +110,10 @@ function isExcludedContent(text: string, from: number, to: number): boolean {
 /**
  * Create decorations for parts of speech highlighting
  */
-function createPosDecorations(text: string, enabledPartsOfSpeech: Set<string>): DecorationSet {
+function createPosDecorations(
+  text: string,
+  enabledPartsOfSpeech: Set<string>
+): DecorationSet {
   console.log(
     '[CopyeditMode] Creating POS decorations for text length:',
     text.length
@@ -185,44 +143,25 @@ function createPosDecorations(text: string, enabledPartsOfSpeech: Set<string>): 
       console.log('[CopyeditMode] Excluding', pronouns.length, 'pronouns')
 
       allNouns.forEach((match: CompromiseMatch) => {
-      const matchText = match.text()
-      if (
-        !matchText ||
-        matchText.trim().length === 0 ||
-        pronounTexts.has(matchText.toLowerCase())
-      ) {
-        return
-      }
-
-      // Try to get offset from Compromise first
-      const offset = match.offset
-      if (offset && offset.start >= 0 && offset.length > 0) {
-        const from = offset.start
-        const to = offset.start + offset.length
-        const rangeKey = `${from}-${to}`
-
-        // Skip if we've already processed this range
-        if (processedRanges.has(rangeKey)) {
+        const matchText = match.text()
+        if (
+          !matchText ||
+          matchText.trim().length === 0 ||
+          pronounTexts.has(matchText.toLowerCase())
+        ) {
           return
         }
 
-        if (!isExcludedContent(text, from, to)) {
-          marks.push(Decoration.mark({ class: 'cm-pos-noun' }).range(from, to))
-          processedRanges.add(rangeKey)
-        }
-      } else {
-        // Fallback: find all occurrences with word boundary checking
-        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
-        const matches = Array.from(text.matchAll(wordBoundaryRegex))
-        
-        for (const match of matches) {
-          const from = match.index!
-          const to = match.index! + match[0].length
+        // Try to get offset from Compromise first
+        const offset = match.offset
+        if (offset && offset.start >= 0 && offset.length > 0) {
+          const from = offset.start
+          const to = offset.start + offset.length
           const rangeKey = `${from}-${to}`
 
+          // Skip if we've already processed this range
           if (processedRanges.has(rangeKey)) {
-            continue
+            return
           }
 
           if (!isExcludedContent(text, from, to)) {
@@ -231,80 +170,82 @@ function createPosDecorations(text: string, enabledPartsOfSpeech: Set<string>): 
             )
             processedRanges.add(rangeKey)
           }
+        } else {
+          // Fallback: find all occurrences with word boundary checking
+          const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+          const matches = Array.from(text.matchAll(wordBoundaryRegex))
+
+          for (const match of matches) {
+            const from = match.index
+            const to = match.index + match[0].length
+            const rangeKey = `${from}-${to}`
+
+            if (processedRanges.has(rangeKey)) {
+              continue
+            }
+
+            if (!isExcludedContent(text, from, to)) {
+              marks.push(
+                Decoration.mark({ class: 'cm-pos-noun' }).range(from, to)
+              )
+              processedRanges.add(rangeKey)
+            }
+          }
         }
-      }
       })
     }
 
     // Process verbs (exclude auxiliaries and modals for copyediting relevance)
     if (enabledPartsOfSpeech.has('verbs')) {
       const allVerbs = doc.match('#Verb')
-    const auxiliaries = doc.match('#Auxiliary')
-    const modals = doc.match('#Modal')
+      const auxiliaries = doc.match('#Auxiliary')
+      const modals = doc.match('#Modal')
 
-    // Create set of excluded verb texts
-    const excludedVerbTexts = new Set<string>()
-    auxiliaries.forEach((aux: CompromiseMatch) => {
-      const text = aux.text()
-      if (text) {
-        excludedVerbTexts.add(text.toLowerCase())
-      }
-    })
-    modals.forEach((modal: CompromiseMatch) => {
-      const text = modal.text()
-      if (text) {
-        excludedVerbTexts.add(text.toLowerCase())
-      }
-    })
+      // Create set of excluded verb texts
+      const excludedVerbTexts = new Set<string>()
+      auxiliaries.forEach((aux: CompromiseMatch) => {
+        const text = aux.text()
+        if (text) {
+          excludedVerbTexts.add(text.toLowerCase())
+        }
+      })
+      modals.forEach((modal: CompromiseMatch) => {
+        const text = modal.text()
+        if (text) {
+          excludedVerbTexts.add(text.toLowerCase())
+        }
+      })
 
-    console.log('[CopyeditMode] Found', allVerbs.length, 'total verbs')
-    console.log(
-      '[CopyeditMode] Excluding',
-      auxiliaries.length,
-      'auxiliaries and',
-      modals.length,
-      'modals'
-    )
+      console.log('[CopyeditMode] Found', allVerbs.length, 'total verbs')
+      console.log(
+        '[CopyeditMode] Excluding',
+        auxiliaries.length,
+        'auxiliaries and',
+        modals.length,
+        'modals'
+      )
 
-    allVerbs.forEach((match: CompromiseMatch) => {
-      const matchText = match.text()
-      if (
-        !matchText ||
-        matchText.trim().length === 0 ||
-        excludedVerbTexts.has(matchText.toLowerCase())
-      ) {
-        return
-      }
-
-      // Try to get offset from Compromise first
-      const offset = match.offset
-      if (offset && offset.start >= 0 && offset.length > 0) {
-        const from = offset.start
-        const to = offset.start + offset.length
-        const rangeKey = `${from}-${to}`
-
-        // Skip if we've already processed this range
-        if (processedRanges.has(rangeKey)) {
+      allVerbs.forEach((match: CompromiseMatch) => {
+        const matchText = match.text()
+        if (
+          !matchText ||
+          matchText.trim().length === 0 ||
+          excludedVerbTexts.has(matchText.toLowerCase())
+        ) {
           return
         }
 
-        if (!isExcludedContent(text, from, to)) {
-          marks.push(Decoration.mark({ class: 'cm-pos-verb' }).range(from, to))
-          processedRanges.add(rangeKey)
-        }
-      } else {
-        // Fallback: find all occurrences with word boundary checking
-        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
-        const matches = Array.from(text.matchAll(wordBoundaryRegex))
-        
-        for (const match of matches) {
-          const from = match.index!
-          const to = match.index! + match[0].length
+        // Try to get offset from Compromise first
+        const offset = match.offset
+        if (offset && offset.start >= 0 && offset.length > 0) {
+          const from = offset.start
+          const to = offset.start + offset.length
           const rangeKey = `${from}-${to}`
 
+          // Skip if we've already processed this range
           if (processedRanges.has(rangeKey)) {
-            continue
+            return
           }
 
           if (!isExcludedContent(text, from, to)) {
@@ -313,53 +254,53 @@ function createPosDecorations(text: string, enabledPartsOfSpeech: Set<string>): 
             )
             processedRanges.add(rangeKey)
           }
+        } else {
+          // Fallback: find all occurrences with word boundary checking
+          const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+          const matches = Array.from(text.matchAll(wordBoundaryRegex))
+
+          for (const match of matches) {
+            const from = match.index
+            const to = match.index + match[0].length
+            const rangeKey = `${from}-${to}`
+
+            if (processedRanges.has(rangeKey)) {
+              continue
+            }
+
+            if (!isExcludedContent(text, from, to)) {
+              marks.push(
+                Decoration.mark({ class: 'cm-pos-verb' }).range(from, to)
+              )
+              processedRanges.add(rangeKey)
+            }
+          }
         }
-      }
       })
     }
 
     // Process adjectives for copyediting analysis
     if (enabledPartsOfSpeech.has('adjectives')) {
       const adjectives = doc.match('#Adjective')
-    console.log('[CopyeditMode] Found', adjectives.length, 'adjectives')
+      console.log('[CopyeditMode] Found', adjectives.length, 'adjectives')
 
-    adjectives.forEach((match: CompromiseMatch) => {
-      const matchText = match.text()
-      if (!matchText || matchText.trim().length === 0) {
-        return
-      }
-
-      // Try to get offset from Compromise first
-      const offset = match.offset
-      if (offset && offset.start >= 0 && offset.length > 0) {
-        const from = offset.start
-        const to = offset.start + offset.length
-        const rangeKey = `${from}-${to}`
-
-        // Skip if we've already processed this range
-        if (processedRanges.has(rangeKey)) {
+      adjectives.forEach((match: CompromiseMatch) => {
+        const matchText = match.text()
+        if (!matchText || matchText.trim().length === 0) {
           return
         }
 
-        if (!isExcludedContent(text, from, to)) {
-          marks.push(
-            Decoration.mark({ class: 'cm-pos-adjective' }).range(from, to)
-          )
-          processedRanges.add(rangeKey)
-        }
-      } else {
-        // Fallback: find all occurrences with word boundary checking
-        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
-        const matches = Array.from(text.matchAll(wordBoundaryRegex))
-        
-        for (const match of matches) {
-          const from = match.index!
-          const to = match.index! + match[0].length
+        // Try to get offset from Compromise first
+        const offset = match.offset
+        if (offset && offset.start >= 0 && offset.length > 0) {
+          const from = offset.start
+          const to = offset.start + offset.length
           const rangeKey = `${from}-${to}`
 
+          // Skip if we've already processed this range
           if (processedRanges.has(rangeKey)) {
-            continue
+            return
           }
 
           if (!isExcludedContent(text, from, to)) {
@@ -368,53 +309,53 @@ function createPosDecorations(text: string, enabledPartsOfSpeech: Set<string>): 
             )
             processedRanges.add(rangeKey)
           }
+        } else {
+          // Fallback: find all occurrences with word boundary checking
+          const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+          const matches = Array.from(text.matchAll(wordBoundaryRegex))
+
+          for (const match of matches) {
+            const from = match.index
+            const to = match.index + match[0].length
+            const rangeKey = `${from}-${to}`
+
+            if (processedRanges.has(rangeKey)) {
+              continue
+            }
+
+            if (!isExcludedContent(text, from, to)) {
+              marks.push(
+                Decoration.mark({ class: 'cm-pos-adjective' }).range(from, to)
+              )
+              processedRanges.add(rangeKey)
+            }
+          }
         }
-      }
       })
     }
 
     // Process adverbs for writing style analysis
     if (enabledPartsOfSpeech.has('adverbs')) {
       const adverbs = doc.match('#Adverb')
-    console.log('[CopyeditMode] Found', adverbs.length, 'adverbs')
+      console.log('[CopyeditMode] Found', adverbs.length, 'adverbs')
 
-    adverbs.forEach((match: CompromiseMatch) => {
-      const matchText = match.text()
-      if (!matchText || matchText.trim().length === 0) {
-        return
-      }
-
-      // Try to get offset from Compromise first
-      const offset = match.offset
-      if (offset && offset.start >= 0 && offset.length > 0) {
-        const from = offset.start
-        const to = offset.start + offset.length
-        const rangeKey = `${from}-${to}`
-
-        // Skip if we've already processed this range
-        if (processedRanges.has(rangeKey)) {
+      adverbs.forEach((match: CompromiseMatch) => {
+        const matchText = match.text()
+        if (!matchText || matchText.trim().length === 0) {
           return
         }
 
-        if (!isExcludedContent(text, from, to)) {
-          marks.push(
-            Decoration.mark({ class: 'cm-pos-adverb' }).range(from, to)
-          )
-          processedRanges.add(rangeKey)
-        }
-      } else {
-        // Fallback: find all occurrences with word boundary checking
-        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
-        const matches = Array.from(text.matchAll(wordBoundaryRegex))
-        
-        for (const match of matches) {
-          const from = match.index!
-          const to = match.index! + match[0].length
+        // Try to get offset from Compromise first
+        const offset = match.offset
+        if (offset && offset.start >= 0 && offset.length > 0) {
+          const from = offset.start
+          const to = offset.start + offset.length
           const rangeKey = `${from}-${to}`
 
+          // Skip if we've already processed this range
           if (processedRanges.has(rangeKey)) {
-            continue
+            return
           }
 
           if (!isExcludedContent(text, from, to)) {
@@ -423,53 +364,53 @@ function createPosDecorations(text: string, enabledPartsOfSpeech: Set<string>): 
             )
             processedRanges.add(rangeKey)
           }
+        } else {
+          // Fallback: find all occurrences with word boundary checking
+          const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+          const matches = Array.from(text.matchAll(wordBoundaryRegex))
+
+          for (const match of matches) {
+            const from = match.index
+            const to = match.index + match[0].length
+            const rangeKey = `${from}-${to}`
+
+            if (processedRanges.has(rangeKey)) {
+              continue
+            }
+
+            if (!isExcludedContent(text, from, to)) {
+              marks.push(
+                Decoration.mark({ class: 'cm-pos-adverb' }).range(from, to)
+              )
+              processedRanges.add(rangeKey)
+            }
+          }
         }
-      }
       })
     }
 
     // Process conjunctions for sentence flow analysis
     if (enabledPartsOfSpeech.has('conjunctions')) {
       const conjunctions = doc.match('#Conjunction')
-    console.log('[CopyeditMode] Found', conjunctions.length, 'conjunctions')
+      console.log('[CopyeditMode] Found', conjunctions.length, 'conjunctions')
 
-    conjunctions.forEach((match: CompromiseMatch) => {
-      const matchText = match.text()
-      if (!matchText || matchText.trim().length === 0) {
-        return
-      }
-
-      // Try to get offset from Compromise first
-      const offset = match.offset
-      if (offset && offset.start >= 0 && offset.length > 0) {
-        const from = offset.start
-        const to = offset.start + offset.length
-        const rangeKey = `${from}-${to}`
-
-        // Skip if we've already processed this range
-        if (processedRanges.has(rangeKey)) {
+      conjunctions.forEach((match: CompromiseMatch) => {
+        const matchText = match.text()
+        if (!matchText || matchText.trim().length === 0) {
           return
         }
 
-        if (!isExcludedContent(text, from, to)) {
-          marks.push(
-            Decoration.mark({ class: 'cm-pos-conjunction' }).range(from, to)
-          )
-          processedRanges.add(rangeKey)
-        }
-      } else {
-        // Fallback: find all occurrences with word boundary checking
-        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
-        const matches = Array.from(text.matchAll(wordBoundaryRegex))
-        
-        for (const match of matches) {
-          const from = match.index!
-          const to = match.index! + match[0].length
+        // Try to get offset from Compromise first
+        const offset = match.offset
+        if (offset && offset.start >= 0 && offset.length > 0) {
+          const from = offset.start
+          const to = offset.start + offset.length
           const rangeKey = `${from}-${to}`
 
+          // Skip if we've already processed this range
           if (processedRanges.has(rangeKey)) {
-            continue
+            return
           }
 
           if (!isExcludedContent(text, from, to)) {
@@ -478,8 +419,29 @@ function createPosDecorations(text: string, enabledPartsOfSpeech: Set<string>): 
             )
             processedRanges.add(rangeKey)
           }
+        } else {
+          // Fallback: find all occurrences with word boundary checking
+          const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+          const matches = Array.from(text.matchAll(wordBoundaryRegex))
+
+          for (const match of matches) {
+            const from = match.index
+            const to = match.index + match[0].length
+            const rangeKey = `${from}-${to}`
+
+            if (processedRanges.has(rangeKey)) {
+              continue
+            }
+
+            if (!isExcludedContent(text, from, to)) {
+              marks.push(
+                Decoration.mark({ class: 'cm-pos-conjunction' }).range(from, to)
+              )
+              processedRanges.add(rangeKey)
+            }
+          }
         }
-      }
       })
     }
 
@@ -491,71 +453,78 @@ function createPosDecorations(text: string, enabledPartsOfSpeech: Set<string>): 
   return Decoration.set(marks, true)
 }
 
-
 // Global reference to current view for external updates
 let currentEditorView: EditorView | null = null
 
 // Function to get enabled parts of speech from global settings
 function getEnabledPartsOfSpeech(): Set<string> {
   const globalSettings = useProjectStore.getState().globalSettings
-  const enabledArray = globalSettings?.general?.copyedit?.enabledPartsOfSpeech || ['nouns', 'verbs', 'adjectives', 'adverbs', 'conjunctions']
-  return new Set(enabledArray)
+  const highlights = globalSettings?.general?.highlights || {
+    nouns: true,
+    verbs: true,
+    adjectives: true,
+    adverbs: true,
+    conjunctions: true,
+  }
+
+  const enabled = new Set<string>()
+  if (highlights.nouns) enabled.add('nouns')
+  if (highlights.verbs) enabled.add('verbs')
+  if (highlights.adjectives) enabled.add('adjectives')
+  if (highlights.adverbs) enabled.add('adverbs')
+  if (highlights.conjunctions) enabled.add('conjunctions')
+
+  return enabled
+}
+
+// Function to check if any highlights are enabled
+function hasAnyHighlightsEnabled(): boolean {
+  const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
+  return enabledPartsOfSpeech.size > 0
 }
 
 // Function to trigger re-analysis from external components
 export function updateCopyeditModePartsOfSpeech() {
   if (currentEditorView) {
-    console.log('[CopyeditMode] External trigger for parts-of-speech update')
-    const state = currentEditorView.state.field(copyeditModeState)
-    if (state.enabled) {
-      // Get enabled parts of speech from global settings
-      const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
-      const doc = currentEditorView.state.doc.toString()
-      const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
-      
-      currentEditorView.dispatch({
-        effects: updatePosDecorations.of(decorations),
-      })
-    }
+    console.log('[Highlights] External trigger for parts-of-speech update')
+    // Always re-analyze when called, the decorations function will handle empty sets
+    const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
+    const doc = currentEditorView.state.doc.toString()
+    const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
+
+    currentEditorView.dispatch({
+      effects: updatePosDecorations.of(decorations),
+    })
   }
 }
 
-// Enhanced copyedit mode plugin with view tracking
-export const copyeditModePlugin = ViewPlugin.fromClass(
+// Highlight plugin with view tracking
+export const highlightPlugin = ViewPlugin.fromClass(
   class {
     private timeoutId: number | null = null
+    private hasInitialAnalysis = false
 
     constructor(public view: EditorView) {
-      console.log('[CopyeditMode] Plugin constructed')
+      console.log('[Highlights] Plugin constructed')
       currentEditorView = view // Store reference for external access
     }
 
     update(update: ViewUpdate) {
-      const state = update.state.field(copyeditModeState)
-      const prevState = update.startState.field(copyeditModeState)
-      console.log(
-        '[CopyeditMode] Plugin update - enabled:',
-        state.enabled,
-        'docChanged:',
-        update.docChanged
-      )
+      console.log('[Highlights] Plugin update - docChanged:', update.docChanged)
 
-      if (!state.enabled) {
-        console.log('[CopyeditMode] Plugin skipping update - mode disabled')
-        return
-      }
+      // Always check if any highlights are enabled and analyze if needed
+      const hasHighlights = hasAnyHighlightsEnabled()
 
-      // Check if mode was just enabled
-      const justEnabled = state.enabled && !prevState.enabled
-      if (justEnabled) {
+      if (hasHighlights && update.docChanged) {
         console.log(
-          '[CopyeditMode] Mode just enabled, scheduling initial analysis'
+          '[Highlights] Document changed with highlights enabled, scheduling analysis'
         )
         this.scheduleAnalysis()
-      }
-      // Or if document changed while mode is on
-      else if (update.docChanged) {
-        console.log('[CopyeditMode] Document changed, scheduling analysis')
+      } else if (hasHighlights && !this.hasInitialAnalysis) {
+        console.log(
+          '[Highlights] First update with highlights enabled, scheduling initial analysis'
+        )
+        this.hasInitialAnalysis = true
         this.scheduleAnalysis()
       }
     }
@@ -565,29 +534,29 @@ export const copyeditModePlugin = ViewPlugin.fromClass(
         clearTimeout(this.timeoutId)
       }
 
-      console.log('[CopyeditMode] Scheduling analysis in 300ms')
+      console.log('[Highlights] Scheduling analysis in 300ms')
       this.timeoutId = window.setTimeout(() => {
         this.analyzeDocument()
       }, 300) // 300ms debounce
     }
 
     analyzeDocument() {
-      console.log('[CopyeditMode] Analyzing document')
+      console.log('[Highlights] Analyzing document')
       const doc = this.view.state.doc.toString()
-      
+
       // Get enabled parts of speech from global settings
       const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
-      
+
       const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
 
-      console.log('[CopyeditMode] Dispatching decoration update')
+      console.log('[Highlights] Dispatching decoration update')
       this.view.dispatch({
         effects: updatePosDecorations.of(decorations),
       })
     }
 
     destroy() {
-      console.log('[CopyeditMode] Plugin destroyed')
+      console.log('[Highlights] Plugin destroyed')
       if (this.timeoutId !== null) {
         clearTimeout(this.timeoutId)
       }
@@ -598,8 +567,8 @@ export const copyeditModePlugin = ViewPlugin.fromClass(
   }
 )
 
-// Combined copyedit mode extension
+// Combined highlight extension
 export function createCopyeditModeExtension() {
-  console.log('[CopyeditMode] Creating extension')
-  return [copyeditModeState, copyeditModeDecorations, copyeditModePlugin]
+  console.log('[Highlights] Creating extension')
+  return [highlightDecorations, highlightPlugin]
 }

@@ -12,7 +12,6 @@ import {
 import { altKeyEffect } from '../../lib/editor/urls'
 import { toggleFocusMode } from '../../lib/editor/extensions/focus-mode'
 import { toggleTypewriterMode } from '../../lib/editor/extensions/typewriter-mode'
-import { toggleCopyeditMode } from '../../lib/editor/extensions/copyedit-mode'
 import './Editor.css'
 import '../../lib/editor/extensions/copyedit-mode.css'
 
@@ -27,13 +26,8 @@ const EditorViewComponent: React.FC = () => {
   const currentFileId = useEditorStore(state => state.currentFile?.id)
   const focusModeEnabled = useUIStore(state => state.focusModeEnabled)
   const typewriterModeEnabled = useUIStore(state => state.typewriterModeEnabled)
-  const copyeditModeEnabled = useUIStore(state => state.copyeditModeEnabled)
-
   // eslint-disable-next-line no-console
-  console.log(
-    '[CopyeditMode] Component render - copyeditModeEnabled:',
-    copyeditModeEnabled
-  )
+  console.log('[WritingModes] Component render')
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const [isAltPressed, setIsAltPressed] = useState(false)
@@ -76,43 +70,34 @@ const EditorViewComponent: React.FC = () => {
     const {
       focusModeEnabled: currentFocusMode,
       typewriterModeEnabled: currentTypewriterMode,
-      copyeditModeEnabled: currentCopyeditMode,
     } = useUIStore.getState()
 
     // eslint-disable-next-line no-console
     console.log(
-      '[CopyeditMode] Mode change handler - copyeditModeEnabled:',
-      currentCopyeditMode,
-      'focusModeEnabled:',
+      '[WritingModes] Mode change handler - focusModeEnabled:',
       currentFocusMode,
       'typewriterModeEnabled:',
       currentTypewriterMode
     )
     if (viewRef.current) {
       // eslint-disable-next-line no-console
-      console.log('[CopyeditMode] Dispatching effects to CodeMirror')
+      console.log('[WritingModes] Dispatching effects to CodeMirror')
       viewRef.current.dispatch({
         effects: [
           toggleFocusMode.of(currentFocusMode),
           toggleTypewriterMode.of(currentTypewriterMode),
-          toggleCopyeditMode.of(currentCopyeditMode),
         ],
       })
     } else {
       // eslint-disable-next-line no-console
-      console.log('[CopyeditMode] WARNING: viewRef.current is null')
+      console.log('[WritingModes] WARNING: viewRef.current is null')
     }
   }, []) // Stable dependency array per architecture guide
 
   // Subscribe to mode changes using the stable callback
   useEffect(() => {
     handleModeChange()
-  }, [
-    handleModeChange,
-    focusModeEnabled,
-    typewriterModeEnabled,
-    copyeditModeEnabled,
-  ])
+  }, [handleModeChange, focusModeEnabled, typewriterModeEnabled])
 
   // Track Alt key state for URL highlighting - moved back to component for timing
   useEffect(() => {
