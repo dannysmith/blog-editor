@@ -16,7 +16,6 @@ import {
   Eye,
   Edit,
   Highlighter,
-  CheckCircle,
 } from 'lucide-react'
 import { AppCommand, CommandContext } from './types'
 import { Collection, FileEntry } from '../../store'
@@ -193,17 +192,6 @@ export const viewModeCommands: AppCommand[] = [
       // eslint-disable-next-line no-console
       console.log('[CopyeditMode] Command executed from command palette')
       context.toggleCopyeditMode()
-    },
-    isAvailable: () => true,
-  },
-  {
-    id: 'toggle-spell-check',
-    label: 'Toggle Spell Check',
-    description: 'Enable native macOS spell checking and grammar checking',
-    icon: CheckCircle,
-    group: 'settings',
-    execute: (context: CommandContext) => {
-      context.toggleSpellCheck()
     },
     isAvailable: () => true,
   },

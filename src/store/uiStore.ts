@@ -7,7 +7,6 @@ interface UIState {
   focusModeEnabled: boolean
   typewriterModeEnabled: boolean
   copyeditModeEnabled: boolean
-  spellCheckEnabled: boolean
   distractionFreeBarsHidden: boolean
 
   // Actions
@@ -16,7 +15,6 @@ interface UIState {
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void
   toggleCopyeditMode: () => void
-  toggleSpellCheck: () => void
   setDistractionFreeBarsHidden: (hidden: boolean) => void
   handleTypingInEditor: () => void
 }
@@ -28,7 +26,6 @@ export const useUIStore = create<UIState>((set, get) => ({
   focusModeEnabled: false,
   typewriterModeEnabled: false,
   copyeditModeEnabled: false,
-  spellCheckEnabled: false,
   distractionFreeBarsHidden: false,
 
   // Actions
@@ -68,10 +65,6 @@ export const useUIStore = create<UIState>((set, get) => ({
       )
       return { copyeditModeEnabled: newState }
     })
-  },
-
-  toggleSpellCheck: () => {
-    set(state => ({ spellCheckEnabled: !state.spellCheckEnabled }))
   },
 
   setDistractionFreeBarsHidden: (hidden: boolean) => {

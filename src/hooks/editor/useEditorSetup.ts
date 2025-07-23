@@ -15,15 +15,13 @@ export const useEditorSetup = (
   onSave: () => void,
   onFocus: () => void,
   onBlur: () => void,
-  componentBuilderHandler?: (view: EditorView) => boolean,
-  spellCheckEnabled?: boolean
+  componentBuilderHandler?: (view: EditorView) => boolean
 ) => {
   // Create extensions with current configuration
   const extensions = createExtensions({
     onFocus,
     onBlur,
     componentBuilderHandler,
-    spellCheckEnabled,
   })
 
   // Set up editor commands when editor view is available

@@ -28,7 +28,6 @@ export interface CommandContext {
   toggleFocusMode: () => void
   toggleTypewriterMode: () => void
   toggleCopyeditMode: () => void
-  toggleSpellCheck: () => void
 
   // Future extensibility
   editorSelection?: {

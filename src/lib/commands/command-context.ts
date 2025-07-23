@@ -68,9 +68,6 @@ export function useCommandContext(): CommandContext {
       console.log('[CopyeditMode] Dispatching toggle-copyedit-mode event')
       window.dispatchEvent(new CustomEvent('toggle-copyedit-mode'))
     },
-    toggleSpellCheck: () => {
-      window.dispatchEvent(new CustomEvent('toggle-spell-check'))
-    },
     // Future: editor selection context could be added here
   }
 }

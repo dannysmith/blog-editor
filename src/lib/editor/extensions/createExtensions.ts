@@ -12,7 +12,6 @@ import { createEditorTheme } from './theme'
 import { createFocusModeExtension } from './focus-mode'
 import { createTypewriterModeExtension } from './typewriter-mode'
 import { createCopyeditModeExtension } from './copyedit-mode'
-import { createSpellcheckExtension } from './spellcheck'
 
 /**
  * Configuration for creating editor extensions
@@ -21,19 +20,13 @@ export interface ExtensionConfig {
   onFocus: () => void
   onBlur: () => void
   componentBuilderHandler?: (view: EditorView) => boolean
-  spellCheckEnabled?: boolean
 }
 
 /**
  * Create all editor extensions
  */
 export const createExtensions = (config: ExtensionConfig) => {
-  const {
-    onFocus,
-    onBlur,
-    componentBuilderHandler,
-    spellCheckEnabled = false,
-  } = config
+  const { onFocus, onBlur, componentBuilderHandler } = config
 
   const extensions = [
     // Core functionality
@@ -83,9 +76,6 @@ export const createExtensions = (config: ExtensionConfig) => {
     // eslint-disable-next-line no-console
     ...(console.log('[CopyeditMode] Adding to extensions array'),
     createCopyeditModeExtension()),
-
-    // Native spell checking - conditionally included
-    ...createSpellcheckExtension(spellCheckEnabled),
 
     // Theme and styling
     createEditorTheme(),
