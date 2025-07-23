@@ -207,15 +207,18 @@ function createPosDecorations(text: string): DecorationSet {
           processedRanges.add(rangeKey)
         }
       } else {
-        // Fallback: find first occurrence only
-        const position = text.indexOf(matchText)
-        if (position !== -1) {
-          const from = position
-          const to = position + matchText.length
+        // Fallback: find all occurrences with word boundary checking
+        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+        const matches = Array.from(text.matchAll(wordBoundaryRegex))
+        
+        for (const match of matches) {
+          const from = match.index!
+          const to = match.index! + match[0].length
           const rangeKey = `${from}-${to}`
 
           if (processedRanges.has(rangeKey)) {
-            return
+            continue
           }
 
           if (!isExcludedContent(text, from, to)) {
@@ -284,15 +287,18 @@ function createPosDecorations(text: string): DecorationSet {
           processedRanges.add(rangeKey)
         }
       } else {
-        // Fallback: find first occurrence only
-        const position = text.indexOf(matchText)
-        if (position !== -1) {
-          const from = position
-          const to = position + matchText.length
+        // Fallback: find all occurrences with word boundary checking
+        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+        const matches = Array.from(text.matchAll(wordBoundaryRegex))
+        
+        for (const match of matches) {
+          const from = match.index!
+          const to = match.index! + match[0].length
           const rangeKey = `${from}-${to}`
 
           if (processedRanges.has(rangeKey)) {
-            return
+            continue
           }
 
           if (!isExcludedContent(text, from, to)) {
@@ -334,15 +340,18 @@ function createPosDecorations(text: string): DecorationSet {
           processedRanges.add(rangeKey)
         }
       } else {
-        // Fallback: find first occurrence only
-        const position = text.indexOf(matchText)
-        if (position !== -1) {
-          const from = position
-          const to = position + matchText.length
+        // Fallback: find all occurrences with word boundary checking
+        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+        const matches = Array.from(text.matchAll(wordBoundaryRegex))
+        
+        for (const match of matches) {
+          const from = match.index!
+          const to = match.index! + match[0].length
           const rangeKey = `${from}-${to}`
 
           if (processedRanges.has(rangeKey)) {
-            return
+            continue
           }
 
           if (!isExcludedContent(text, from, to)) {
@@ -384,15 +393,18 @@ function createPosDecorations(text: string): DecorationSet {
           processedRanges.add(rangeKey)
         }
       } else {
-        // Fallback: find first occurrence only
-        const position = text.indexOf(matchText)
-        if (position !== -1) {
-          const from = position
-          const to = position + matchText.length
+        // Fallback: find all occurrences with word boundary checking
+        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+        const matches = Array.from(text.matchAll(wordBoundaryRegex))
+        
+        for (const match of matches) {
+          const from = match.index!
+          const to = match.index! + match[0].length
           const rangeKey = `${from}-${to}`
 
           if (processedRanges.has(rangeKey)) {
-            return
+            continue
           }
 
           if (!isExcludedContent(text, from, to)) {
@@ -434,15 +446,18 @@ function createPosDecorations(text: string): DecorationSet {
           processedRanges.add(rangeKey)
         }
       } else {
-        // Fallback: find first occurrence only
-        const position = text.indexOf(matchText)
-        if (position !== -1) {
-          const from = position
-          const to = position + matchText.length
+        // Fallback: find all occurrences with word boundary checking
+        const escapedText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const wordBoundaryRegex = new RegExp(`\\b${escapedText}\\b`, 'g')
+        const matches = Array.from(text.matchAll(wordBoundaryRegex))
+        
+        for (const match of matches) {
+          const from = match.index!
+          const to = match.index! + match[0].length
           const rangeKey = `${from}-${to}`
 
           if (processedRanges.has(rangeKey)) {
-            return
+            continue
           }
 
           if (!isExcludedContent(text, from, to)) {
