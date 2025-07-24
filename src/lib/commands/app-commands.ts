@@ -185,76 +185,95 @@ export const viewModeCommands: AppCommand[] = [
 ]
 
 /**
- * Highlight commands for parts of speech
+ * Highlight commands for parts of speech with dynamic labels
  */
-export const highlightCommands: AppCommand[] = [
-  {
-    id: 'toggle-highlight-nouns',
-    label: 'Highlight Nouns',
-    description: 'Toggle highlighting of nouns in the editor',
-    icon: Highlighter,
-    group: 'highlight',
-    execute: (context: CommandContext) => {
-      context.toggleHighlightNouns()
+export function getHighlightCommands(context: CommandContext): AppCommand[] {
+  const highlights = context.globalSettings?.general?.highlights || {
+    nouns: true,
+    verbs: true,
+    adjectives: true,
+    adverbs: true,
+    conjunctions: true,
+  }
+
+  // Check if any highlights are enabled for the "Toggle All" command
+  const anyEnabled = Object.values(highlights).some(enabled => enabled)
+
+  return [
+    {
+      id: 'toggle-highlight-nouns',
+      label: highlights.nouns ? 'Hide Noun Highlights' : 'Show Noun Highlights',
+      description: 'Toggle highlighting of nouns in the editor',
+      icon: Highlighter,
+      group: 'highlight',
+      execute: (context: CommandContext) => {
+        context.toggleHighlightNouns()
+      },
+      isAvailable: () => true,
     },
-    isAvailable: () => true,
-  },
-  {
-    id: 'toggle-highlight-verbs',
-    label: 'Highlight Verbs',
-    description: 'Toggle highlighting of verbs in the editor',
-    icon: Highlighter,
-    group: 'highlight',
-    execute: (context: CommandContext) => {
-      context.toggleHighlightVerbs()
+    {
+      id: 'toggle-highlight-verbs',
+      label: highlights.verbs ? 'Hide Verb Highlights' : 'Show Verb Highlights',
+      description: 'Toggle highlighting of verbs in the editor',
+      icon: Highlighter,
+      group: 'highlight',
+      execute: (context: CommandContext) => {
+        context.toggleHighlightVerbs()
+      },
+      isAvailable: () => true,
     },
-    isAvailable: () => true,
-  },
-  {
-    id: 'toggle-highlight-adjectives',
-    label: 'Highlight Adjectives',
-    description: 'Toggle highlighting of adjectives in the editor',
-    icon: Highlighter,
-    group: 'highlight',
-    execute: (context: CommandContext) => {
-      context.toggleHighlightAdjectives()
+    {
+      id: 'toggle-highlight-adjectives',
+      label: highlights.adjectives
+        ? 'Hide Adjective Highlights'
+        : 'Show Adjective Highlights',
+      description: 'Toggle highlighting of adjectives in the editor',
+      icon: Highlighter,
+      group: 'highlight',
+      execute: (context: CommandContext) => {
+        context.toggleHighlightAdjectives()
+      },
+      isAvailable: () => true,
     },
-    isAvailable: () => true,
-  },
-  {
-    id: 'toggle-highlight-adverbs',
-    label: 'Highlight Adverbs',
-    description: 'Toggle highlighting of adverbs in the editor',
-    icon: Highlighter,
-    group: 'highlight',
-    execute: (context: CommandContext) => {
-      context.toggleHighlightAdverbs()
+    {
+      id: 'toggle-highlight-adverbs',
+      label: highlights.adverbs
+        ? 'Hide Adverb Highlights'
+        : 'Show Adverb Highlights',
+      description: 'Toggle highlighting of adverbs in the editor',
+      icon: Highlighter,
+      group: 'highlight',
+      execute: (context: CommandContext) => {
+        context.toggleHighlightAdverbs()
+      },
+      isAvailable: () => true,
     },
-    isAvailable: () => true,
-  },
-  {
-    id: 'toggle-highlight-conjunctions',
-    label: 'Highlight Conjunctions',
-    description: 'Toggle highlighting of conjunctions in the editor',
-    icon: Highlighter,
-    group: 'highlight',
-    execute: (context: CommandContext) => {
-      context.toggleHighlightConjunctions()
+    {
+      id: 'toggle-highlight-conjunctions',
+      label: highlights.conjunctions
+        ? 'Hide Conjunction Highlights'
+        : 'Show Conjunction Highlights',
+      description: 'Toggle highlighting of conjunctions in the editor',
+      icon: Highlighter,
+      group: 'highlight',
+      execute: (context: CommandContext) => {
+        context.toggleHighlightConjunctions()
+      },
+      isAvailable: () => true,
     },
-    isAvailable: () => true,
-  },
-  {
-    id: 'toggle-all-highlights',
-    label: 'Toggle All Highlights',
-    description: 'Toggle all part-of-speech highlights on or off together',
-    icon: Highlighter,
-    group: 'highlight',
-    execute: (context: CommandContext) => {
-      context.toggleAllHighlights()
+    {
+      id: 'toggle-all-highlights',
+      label: anyEnabled ? 'Hide All Highlights' : 'Show All Highlights',
+      description: 'Toggle all part-of-speech highlights on or off together',
+      icon: Highlighter,
+      group: 'highlight',
+      execute: (context: CommandContext) => {
+        context.toggleAllHighlights()
+      },
+      isAvailable: () => true,
     },
-    isAvailable: () => true,
-  },
-]
+  ]
+}
 
 /**
  * Generate dynamic collection commands based on available collections
@@ -426,6 +445,7 @@ export function getAllCommands(
 ): AppCommand[] {
   const collectionCommands = generateCollectionCommands(context.collections)
   const searchCommands = generateSearchCommands(context, searchValue)
+  const highlightCommands = getHighlightCommands(context)
 
   return [
     ...searchCommands, // Search results first when searching

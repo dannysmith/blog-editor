@@ -54,6 +54,11 @@ export function useCommandPalette(searchValue = '') {
       context.projectPath,
       context.isDirty,
       context.globalSettings?.general?.ideCommand,
+      context.globalSettings?.general?.highlights?.nouns,
+      context.globalSettings?.general?.highlights?.verbs,
+      context.globalSettings?.general?.highlights?.adjectives,
+      context.globalSettings?.general?.highlights?.adverbs,
+      context.globalSettings?.general?.highlights?.conjunctions,
       context.collections.length, // Only react to collection count changes, not array reference
       searchValue, // Add searchValue as dependency
     ]
