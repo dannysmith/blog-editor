@@ -10,8 +10,6 @@ import type { Range } from '@codemirror/state'
 import nlp from 'compromise'
 import { useProjectStore } from '../../../store/projectStore'
 
-/* eslint-disable no-console */
-
 // Type definitions for compromise.js responses
 interface CompromiseOffset {
   start: number
@@ -38,7 +36,6 @@ export const updatePosDecorations = StateEffect.define<DecorationSet>()
 // Highlight decorations
 export const highlightDecorations = StateField.define<DecorationSet>({
   create() {
-    console.log('[Highlights] Decorations field created')
     return Decoration.none
   },
 
@@ -46,9 +43,6 @@ export const highlightDecorations = StateField.define<DecorationSet>({
     // Handle explicit decoration updates
     for (const effect of tr.effects) {
       if (effect.is(updatePosDecorations)) {
-        console.log(
-          '[Highlights] Received decoration update effect, replacing all decorations'
-        )
         // Replace all decorations instead of merging
         return effect.value
       }
@@ -111,18 +105,40 @@ function isExcludedContent(text: string, from: number, to: number): boolean {
 }
 
 /**
+ * Check if a decoration range overlaps with the cursor position or nearby area
+ * This prevents decorations from interfering with active editing
+ */
+function isRangeBeingEdited(
+  from: number,
+  to: number,
+  cursorPosition: number
+): boolean {
+  if (cursorPosition === -1) return false
+
+  // Exclude decorations that contain the cursor or are very close to it
+  // This prevents interference when editing within or near decorated words
+  const buffer = 2 // Small buffer around cursor
+  return (
+    (cursorPosition >= from - buffer && cursorPosition <= to + buffer) ||
+    (from <= cursorPosition && to >= cursorPosition)
+  )
+}
+
+/**
  * Create decorations for parts of speech highlighting
  */
 function createPosDecorations(
   text: string,
   enabledPartsOfSpeech: Set<string>
 ): DecorationSet {
-  console.log(
-    '[CopyeditMode] Creating POS decorations for text length:',
-    text.length
-  )
   const marks: Range<Decoration>[] = []
   const processedRanges = new Set<string>() // Track ranges to avoid duplicates
+
+  // Get current cursor position to exclude words being actively edited
+  let cursorPosition = -1
+  if (currentEditorView) {
+    cursorPosition = currentEditorView.state.selection.main.head
+  }
 
   try {
     // Parse the text with compromise.js
@@ -141,9 +157,6 @@ function createPosDecorations(
           pronounTexts.add(text.toLowerCase())
         }
       })
-
-      console.log('[CopyeditMode] Found', allNouns.length, 'total nouns')
-      console.log('[CopyeditMode] Excluding', pronouns.length, 'pronouns')
 
       allNouns.forEach((match: CompromiseMatch) => {
         const matchText = match.text()
@@ -167,7 +180,10 @@ function createPosDecorations(
             return
           }
 
-          if (!isExcludedContent(text, from, to)) {
+          if (
+            !isExcludedContent(text, from, to) &&
+            !isRangeBeingEdited(from, to, cursorPosition)
+          ) {
             marks.push(
               Decoration.mark({ class: 'cm-pos-noun' }).range(from, to)
             )
@@ -181,14 +197,30 @@ function createPosDecorations(
 
           for (const match of matches) {
             const from = match.index
-            const to = match.index + match[0].length
+            const to = from + match[0].length
             const rangeKey = `${from}-${to}`
+
+            // Validate range
+            if (from < 0 || to > text.length || from >= to) {
+              if (import.meta.env.DEV) {
+                // eslint-disable-next-line no-console
+                console.warn('[CopyeditMode] Invalid range detected:', {
+                  from,
+                  to,
+                  matchText,
+                })
+              }
+              continue
+            }
 
             if (processedRanges.has(rangeKey)) {
               continue
             }
 
-            if (!isExcludedContent(text, from, to)) {
+            if (
+              !isExcludedContent(text, from, to) &&
+              !isRangeBeingEdited(from, to, cursorPosition)
+            ) {
               marks.push(
                 Decoration.mark({ class: 'cm-pos-noun' }).range(from, to)
               )
@@ -220,15 +252,6 @@ function createPosDecorations(
         }
       })
 
-      console.log('[CopyeditMode] Found', allVerbs.length, 'total verbs')
-      console.log(
-        '[CopyeditMode] Excluding',
-        auxiliaries.length,
-        'auxiliaries and',
-        modals.length,
-        'modals'
-      )
-
       allVerbs.forEach((match: CompromiseMatch) => {
         const matchText = match.text()
         if (
@@ -251,7 +274,10 @@ function createPosDecorations(
             return
           }
 
-          if (!isExcludedContent(text, from, to)) {
+          if (
+            !isExcludedContent(text, from, to) &&
+            !isRangeBeingEdited(from, to, cursorPosition)
+          ) {
             marks.push(
               Decoration.mark({ class: 'cm-pos-verb' }).range(from, to)
             )
@@ -272,7 +298,10 @@ function createPosDecorations(
               continue
             }
 
-            if (!isExcludedContent(text, from, to)) {
+            if (
+              !isExcludedContent(text, from, to) &&
+              !isRangeBeingEdited(from, to, cursorPosition)
+            ) {
               marks.push(
                 Decoration.mark({ class: 'cm-pos-verb' }).range(from, to)
               )
@@ -286,7 +315,6 @@ function createPosDecorations(
     // Process adjectives for copyediting analysis
     if (enabledPartsOfSpeech.has('adjectives')) {
       const adjectives = doc.match('#Adjective')
-      console.log('[CopyeditMode] Found', adjectives.length, 'adjectives')
 
       adjectives.forEach((match: CompromiseMatch) => {
         const matchText = match.text()
@@ -306,7 +334,10 @@ function createPosDecorations(
             return
           }
 
-          if (!isExcludedContent(text, from, to)) {
+          if (
+            !isExcludedContent(text, from, to) &&
+            !isRangeBeingEdited(from, to, cursorPosition)
+          ) {
             marks.push(
               Decoration.mark({ class: 'cm-pos-adjective' }).range(from, to)
             )
@@ -327,7 +358,10 @@ function createPosDecorations(
               continue
             }
 
-            if (!isExcludedContent(text, from, to)) {
+            if (
+              !isExcludedContent(text, from, to) &&
+              !isRangeBeingEdited(from, to, cursorPosition)
+            ) {
               marks.push(
                 Decoration.mark({ class: 'cm-pos-adjective' }).range(from, to)
               )
@@ -341,7 +375,6 @@ function createPosDecorations(
     // Process adverbs for writing style analysis
     if (enabledPartsOfSpeech.has('adverbs')) {
       const adverbs = doc.match('#Adverb')
-      console.log('[CopyeditMode] Found', adverbs.length, 'adverbs')
 
       adverbs.forEach((match: CompromiseMatch) => {
         const matchText = match.text()
@@ -361,7 +394,10 @@ function createPosDecorations(
             return
           }
 
-          if (!isExcludedContent(text, from, to)) {
+          if (
+            !isExcludedContent(text, from, to) &&
+            !isRangeBeingEdited(from, to, cursorPosition)
+          ) {
             marks.push(
               Decoration.mark({ class: 'cm-pos-adverb' }).range(from, to)
             )
@@ -382,7 +418,10 @@ function createPosDecorations(
               continue
             }
 
-            if (!isExcludedContent(text, from, to)) {
+            if (
+              !isExcludedContent(text, from, to) &&
+              !isRangeBeingEdited(from, to, cursorPosition)
+            ) {
               marks.push(
                 Decoration.mark({ class: 'cm-pos-adverb' }).range(from, to)
               )
@@ -396,7 +435,6 @@ function createPosDecorations(
     // Process conjunctions for sentence flow analysis
     if (enabledPartsOfSpeech.has('conjunctions')) {
       const conjunctions = doc.match('#Conjunction')
-      console.log('[CopyeditMode] Found', conjunctions.length, 'conjunctions')
 
       conjunctions.forEach((match: CompromiseMatch) => {
         const matchText = match.text()
@@ -416,7 +454,10 @@ function createPosDecorations(
             return
           }
 
-          if (!isExcludedContent(text, from, to)) {
+          if (
+            !isExcludedContent(text, from, to) &&
+            !isRangeBeingEdited(from, to, cursorPosition)
+          ) {
             marks.push(
               Decoration.mark({ class: 'cm-pos-conjunction' }).range(from, to)
             )
@@ -437,7 +478,10 @@ function createPosDecorations(
               continue
             }
 
-            if (!isExcludedContent(text, from, to)) {
+            if (
+              !isExcludedContent(text, from, to) &&
+              !isRangeBeingEdited(from, to, cursorPosition)
+            ) {
               marks.push(
                 Decoration.mark({ class: 'cm-pos-conjunction' }).range(from, to)
               )
@@ -448,9 +492,13 @@ function createPosDecorations(
       })
     }
 
-    console.log('[CopyeditMode] Total decorations created:', marks.length)
+    // Sort marks by position to ensure proper application
+    marks.sort((a, b) => a.from - b.from)
   } catch (error) {
-    console.error('[CopyeditMode] Error in NLP processing:', error)
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.error('[CopyeditMode] Error in NLP processing:', error)
+    }
   }
 
   return Decoration.set(marks, true)
@@ -484,27 +532,20 @@ function hasAnyHighlightsEnabled(): boolean {
 // Function to trigger re-analysis from external components
 export function updateCopyeditModePartsOfSpeech() {
   if (currentEditorView) {
-    console.log('[Highlights] External trigger for parts-of-speech update')
-    // Always re-analyze when called, the decorations function will handle empty sets
+    // Always re-analyze when called externally (user toggled settings)
     const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
-    console.log(
-      '[Highlights] Enabled parts of speech:',
-      Array.from(enabledPartsOfSpeech)
-    )
-
     const doc = currentEditorView.state.doc.toString()
     const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
-    console.log('[Highlights] Created decorations, dispatching update')
 
+    // Preserve cursor position during decoration update
     currentEditorView.dispatch({
       effects: updatePosDecorations.of(decorations),
+      selection: currentEditorView.state.selection,
+      scrollIntoView: false,
     })
 
     // Force the view to update by requesting a measure
     currentEditorView.requestMeasure()
-    console.log('[Highlights] Update dispatched and measure requested')
-  } else {
-    console.log('[Highlights] WARNING: No current editor view available')
   }
 }
 
@@ -513,27 +554,33 @@ export const highlightPlugin = ViewPlugin.fromClass(
   class {
     private timeoutId: number | null = null
     private hasInitialAnalysis = false
+    private isActivelyEditing = false
+    private editingTimeoutId: number | null = null
 
     constructor(public view: EditorView) {
-      console.log('[Highlights] Plugin constructed')
       currentEditorView = view // Store reference for external access
     }
 
     update(update: ViewUpdate) {
-      console.log('[Highlights] Plugin update - docChanged:', update.docChanged)
-
       // Always check if any highlights are enabled and analyze if needed
       const hasHighlights = hasAnyHighlightsEnabled()
 
       if (hasHighlights && update.docChanged) {
-        console.log(
-          '[Highlights] Document changed with highlights enabled, scheduling analysis'
-        )
-        this.scheduleAnalysis()
+        // ANY document change means we're actively editing
+        this.isActivelyEditing = true
+
+        // Clear previous editing timeout
+        if (this.editingTimeoutId !== null) {
+          clearTimeout(this.editingTimeoutId)
+        }
+
+        // Set editing state to false after 3 seconds of complete inactivity
+        this.editingTimeoutId = window.setTimeout(() => {
+          this.isActivelyEditing = false
+          // Immediately re-analyze after editing stops
+          this.scheduleAnalysis()
+        }, 3000)
       } else if (hasHighlights && !this.hasInitialAnalysis) {
-        console.log(
-          '[Highlights] First update with highlights enabled, scheduling initial analysis'
-        )
         this.hasInitialAnalysis = true
         this.scheduleAnalysis()
       }
@@ -544,14 +591,24 @@ export const highlightPlugin = ViewPlugin.fromClass(
         clearTimeout(this.timeoutId)
       }
 
-      console.log('[Highlights] Scheduling analysis in 300ms')
+      // If actively editing, clear decorations immediately and don't schedule analysis
+      if (this.isActivelyEditing) {
+        this.view.dispatch({
+          effects: updatePosDecorations.of(Decoration.none),
+        })
+        return
+      }
       this.timeoutId = window.setTimeout(() => {
         this.analyzeDocument()
-      }, 300) // 300ms debounce
+      }, 300)
     }
 
     analyzeDocument() {
-      console.log('[Highlights] Analyzing document')
+      // Skip analysis if actively editing to prevent cursor interference
+      if (this.isActivelyEditing) {
+        return
+      }
+
       const doc = this.view.state.doc.toString()
 
       // Get enabled parts of speech from global settings
@@ -559,16 +616,22 @@ export const highlightPlugin = ViewPlugin.fromClass(
 
       const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
 
-      console.log('[Highlights] Dispatching decoration update')
+      // Store cursor position before applying decorations
+      const currentSelection = this.view.state.selection
+
       this.view.dispatch({
         effects: updatePosDecorations.of(decorations),
+        selection: currentSelection, // Preserve cursor position
+        scrollIntoView: false, // Don't scroll when updating decorations
       })
     }
 
     destroy() {
-      console.log('[Highlights] Plugin destroyed')
       if (this.timeoutId !== null) {
         clearTimeout(this.timeoutId)
+      }
+      if (this.editingTimeoutId !== null) {
+        clearTimeout(this.editingTimeoutId)
       }
       if (currentEditorView === this.view) {
         currentEditorView = null // Clear reference
@@ -579,6 +642,5 @@ export const highlightPlugin = ViewPlugin.fromClass(
 
 // Combined highlight extension
 export function createCopyeditModeExtension() {
-  console.log('[Highlights] Creating extension')
   return [highlightDecorations, highlightPlugin]
 }

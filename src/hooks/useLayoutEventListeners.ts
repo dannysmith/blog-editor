@@ -218,8 +218,10 @@ export function useLayoutEventListeners() {
       }
 
       void updateGlobalSettings(newSettings).then(() => {
-        // Trigger re-analysis in editor after settings are saved
-        updateCopyeditModePartsOfSpeech()
+        // Add a small delay to let any pending edits complete before re-analyzing
+        setTimeout(() => {
+          updateCopyeditModePartsOfSpeech()
+        }, 50)
       })
     }
 
@@ -249,8 +251,10 @@ export function useLayoutEventListeners() {
       }
 
       void updateGlobalSettings(newSettings).then(() => {
-        // Trigger re-analysis in editor after settings are saved
-        updateCopyeditModePartsOfSpeech()
+        // Add a small delay to let any pending edits complete before re-analyzing
+        setTimeout(() => {
+          updateCopyeditModePartsOfSpeech()
+        }, 50)
       })
     }
 

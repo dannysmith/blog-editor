@@ -1,0 +1,3 @@
+# Task: Dark Mode
+
+Dart mode in the actual editor pane already works perfectly fine, we're using the correct colours. We just need to tweak the way the dark mode works, outside of the editor pane in the sidebar and the sidebar panels. We need to pick some slightly more beautiful colours, maybe a little bit more subtle.And we also need to make sure that all of the other colours we're using elsewhere in the app are compatible with light and dark mode.And then we need to look at why there's a white, very thin border or shadow around the application.We should also review all of the codebase to try and identify any places where we're hardcoding colours that are not going to work properly with light and dark mode.
