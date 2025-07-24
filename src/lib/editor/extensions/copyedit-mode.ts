@@ -46,7 +46,10 @@ export const highlightDecorations = StateField.define<DecorationSet>({
     // Handle explicit decoration updates
     for (const effect of tr.effects) {
       if (effect.is(updatePosDecorations)) {
-        console.log('[Highlights] Received decoration update effect')
+        console.log(
+          '[Highlights] Received decoration update effect, replacing all decorations'
+        )
+        // Replace all decorations instead of merging
         return effect.value
       }
     }
@@ -459,20 +462,15 @@ let currentEditorView: EditorView | null = null
 // Function to get enabled parts of speech from global settings
 function getEnabledPartsOfSpeech(): Set<string> {
   const globalSettings = useProjectStore.getState().globalSettings
-  const highlights = globalSettings?.general?.highlights || {
-    nouns: true,
-    verbs: true,
-    adjectives: true,
-    adverbs: true,
-    conjunctions: true,
-  }
+  const highlights = globalSettings?.general?.highlights
 
   const enabled = new Set<string>()
-  if (highlights.nouns) enabled.add('nouns')
-  if (highlights.verbs) enabled.add('verbs')
-  if (highlights.adjectives) enabled.add('adjectives')
-  if (highlights.adverbs) enabled.add('adverbs')
-  if (highlights.conjunctions) enabled.add('conjunctions')
+  // Use nullish coalescing to properly handle false values
+  if (highlights?.nouns ?? true) enabled.add('nouns')
+  if (highlights?.verbs ?? true) enabled.add('verbs')
+  if (highlights?.adjectives ?? true) enabled.add('adjectives')
+  if (highlights?.adverbs ?? true) enabled.add('adverbs')
+  if (highlights?.conjunctions ?? true) enabled.add('conjunctions')
 
   return enabled
 }
@@ -489,12 +487,24 @@ export function updateCopyeditModePartsOfSpeech() {
     console.log('[Highlights] External trigger for parts-of-speech update')
     // Always re-analyze when called, the decorations function will handle empty sets
     const enabledPartsOfSpeech = getEnabledPartsOfSpeech()
+    console.log(
+      '[Highlights] Enabled parts of speech:',
+      Array.from(enabledPartsOfSpeech)
+    )
+
     const doc = currentEditorView.state.doc.toString()
     const decorations = createPosDecorations(doc, enabledPartsOfSpeech)
+    console.log('[Highlights] Created decorations, dispatching update')
 
     currentEditorView.dispatch({
       effects: updatePosDecorations.of(decorations),
     })
+
+    // Force the view to update by requesting a measure
+    currentEditorView.requestMeasure()
+    console.log('[Highlights] Update dispatched and measure requested')
+  } else {
+    console.log('[Highlights] WARNING: No current editor view available')
   }
 }
 

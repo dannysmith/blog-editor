@@ -206,23 +206,21 @@ export function useLayoutEventListeners() {
           ideCommand: globalSettings?.general?.ideCommand || '',
           theme: globalSettings?.general?.theme || 'system',
           highlights: {
-            nouns: globalSettings?.general?.highlights?.nouns || true,
-            verbs: globalSettings?.general?.highlights?.verbs || true,
-            adjectives: globalSettings?.general?.highlights?.adjectives || true,
-            adverbs: globalSettings?.general?.highlights?.adverbs || true,
+            nouns: globalSettings?.general?.highlights?.nouns ?? true,
+            verbs: globalSettings?.general?.highlights?.verbs ?? true,
+            adjectives: globalSettings?.general?.highlights?.adjectives ?? true,
+            adverbs: globalSettings?.general?.highlights?.adverbs ?? true,
             conjunctions:
-              globalSettings?.general?.highlights?.conjunctions || true,
+              globalSettings?.general?.highlights?.conjunctions ?? true,
             [partOfSpeech]: !currentValue,
           },
         },
       }
 
-      void updateGlobalSettings(newSettings)
-
-      // Trigger re-analysis in editor
-      setTimeout(() => {
+      void updateGlobalSettings(newSettings).then(() => {
+        // Trigger re-analysis in editor after settings are saved
         updateCopyeditModePartsOfSpeech()
-      }, 0)
+      })
     }
 
     const handleToggleAllHighlights = () => {
@@ -250,12 +248,10 @@ export function useLayoutEventListeners() {
         },
       }
 
-      void updateGlobalSettings(newSettings)
-
-      // Trigger re-analysis in editor
-      setTimeout(() => {
+      void updateGlobalSettings(newSettings).then(() => {
+        // Trigger re-analysis in editor after settings are saved
         updateCopyeditModePartsOfSpeech()
-      }, 0)
+      })
     }
 
     const handleFileOpened = (event: Event) => {
