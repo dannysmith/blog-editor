@@ -11,6 +11,8 @@ import { drawSelection, dropCursor } from '@codemirror/view'
 import { comprehensiveHighlightStyle } from '../../lib/editor/syntax'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { Card, CardContent, CardHeader } from '../ui/card'
+import { Separator } from '../ui/separator'
 import { toast } from 'sonner'
 
 interface QuickEntryData {
@@ -61,18 +63,26 @@ export const QuickEntryWindow: React.FC = () => {
           height: '100%',
         },
         '.cm-content': {
-          padding: '12px',
+          padding: '16px',
           minHeight: '100%',
           fontFamily: 'iA Writer Mono, SF Mono, Monaco, monospace',
+          lineHeight: '1.6',
         },
         '.cm-focused': {
           outline: 'none',
         },
         '.cm-editor': {
           height: '100%',
+          backgroundColor: 'transparent',
         },
         '.cm-scroller': {
           height: '100%',
+        },
+        '.cm-content, .cm-gutter': {
+          backgroundColor: 'transparent',
+        },
+        '&.cm-focused .cm-content': {
+          backgroundColor: 'transparent',
         },
       }),
       EditorView.updateListener.of(update => {
@@ -172,65 +182,67 @@ export const QuickEntryWindow: React.FC = () => {
   }
 
   return (
-    <div className="quick-entry-window h-full flex flex-col bg-background/95 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-3 border-b border-border/50"
-        data-tauri-drag-region
-      >
-        <div className="flex items-center gap-2">
-          <div className="text-xs text-muted-foreground">
-            Quick Note → {projectData?.default_collection}
+    <div className="quick-entry-window h-full p-4">
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-4" data-tauri-drag-region>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-medium">Quick Note</h3>
+              <span className="text-xs text-muted-foreground">
+                → {projectData?.default_collection}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void handleClose()}
+              className="h-6 w-6 p-0 rounded-full bg-red-500 hover:bg-red-600 text-white hover:text-white"
+            >
+              ×
+            </Button>
           </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => void handleClose()}
-            className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
-            aria-label="Close"
+        </CardHeader>
+
+        <CardContent className="flex-1 flex flex-col gap-4 pt-0">
+          {/* Title Input */}
+          <Input
+            ref={titleRef}
+            type="text"
+            placeholder="Title (optional)"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
           />
-        </div>
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col p-4 gap-3 min-h-0">
-        {/* Title Input */}
-        <Input
-          ref={titleRef}
-          type="text"
-          placeholder="Title (optional)"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          className="border-border/50 bg-background/50"
-        />
+          <Separator />
 
-        {/* Separator */}
-        <div className="h-px bg-border/30" />
+          {/* Editor */}
+          <div className="flex-1 border rounded-md overflow-hidden">
+            <div ref={editorRef} className="h-full" />
+          </div>
 
-        {/* Editor */}
-        <div className="flex-1 min-h-0 border border-border/50 rounded-md bg-background/30">
-          <div ref={editorRef} className="h-full" />
-        </div>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void handleClose()}
-            disabled={isSaving}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => void handleSave()}
-            disabled={isSaving || (!title.trim() && !content.trim())}
-          >
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-      </div>
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-2">
+            <div className="text-xs text-muted-foreground">
+              ⌘+Enter to save • Esc to cancel
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => void handleClose()}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => void handleSave()}
+                disabled={isSaving || (!title.trim() && !content.trim())}
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
