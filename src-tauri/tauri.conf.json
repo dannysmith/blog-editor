@@ -84,9 +84,6 @@
     "shell": {
       "open": true
     },
-    "global-shortcut": {
-      "all": true
-    },
     "updater": {
       "active": true,
       "endpoints": [
