@@ -540,4 +540,338 @@ export const loadCollectionSchema = async (
 
 ---
 
-This PRD provides comprehensive technical guidance for implementing the global new note feature. The architecture leverages existing Astro Editor patterns while introducing minimal new complexity. The implementation should be executed incrementally, starting with the global shortcut system, then the window management, followed by the editor integration, and finally the settings integration.
+## Agent Consultation Notes
+
+### 1. Tauri v2 Expert Consultation
+
+**Key Recommendations**:
+
+**Global Shortcut Implementation**:
+- Use `tauri-plugin-global-shortcut = "2"` dependency
+- Implement `NSVisualEffectMaterial::Menu` instead of `HudWindow` for better readability
+- Use `skip_taskbar(true)` to avoid dock/Alt+Tab interference
+- Implement lazy window creation pattern (create on demand vs persistent)
+
+**Critical Architecture Decisions**:
+```rust
+// Optimal window configuration
+.always_on_top(true)
+.skip_taskbar(true) // Don't show in Dock/Alt+Tab
+.decorations(false)
+.transparent(true)
+.shadow(true)
+.center() // Automatically centers on display with keyboard focus
+```
+
+**Multi-Window State Management**:
+- Use Tauri's built-in IPC system for window communication
+- Shared Rust state via `State` management for cross-window data
+- Event-driven updates using `app.emit()` between windows
+- Hide vs close strategy: Hide windows for <100ms reopen vs 500ms create
+
+**Performance Optimizations**:
+- Bundle splitting with shared runtime chunk
+- Lazy loading of CodeMirror and heavy components
+- Memory cleanup on window lifecycle events
+
+**Platform Integration**:
+- macOS vibrancy with `window_vibrancy::NSVisualEffectMaterial::Menu`
+- Global shortcut conflicts handled gracefully with clear error messages
+- Multi-display support automatic via Tauri's `.center()` method
+
+### 2. Designer Agent Consultation
+
+**Visual Design Specifications**:
+
+**Layout Proportions** (420×320px base):
+- Header: 32px (10%) - Traffic lights + collection indicator
+- Editor: ~240px+ (75%+) - Maximum writing space
+- Actions: 40px (12.5%) - Save/cancel controls
+- Status: 20px (6%) - Auto-save feedback + word count
+
+**Typography System**:
+- Primary: iA Writer Duo (consistency with main app)
+- Editor: iA Writer Mono for markdown content
+- Sizes: Header 11px, Editor 14px/20px, Actions 12px, Status 10px
+
+**Color Palette** (following existing design system):
+- Light: `hsl(0 0% 100%)` background, `hsl(0 0% 96%)` cards
+- Dark: `hsl(0 0% 7%)` background, `hsl(0 0% 12%)` cards
+- Consistent with main app's CSS custom properties
+
+**Interaction Patterns**:
+- Instant focus in editor on window appearance
+- 0.15s transitions on interactive elements
+- Soft ring focus indication with 3px spread
+- Smart collection auto-selection (most recently used)
+
+**Component Architecture**:
+```
+QuickEntryWindow/
+├── QuickEntryHeader.tsx     // Title bar with traffic lights
+├── QuickEntryEditor.tsx     // CodeMirror integration  
+├── QuickEntryFrontmatter.tsx // Collapsible metadata
+├── QuickEntryActions.tsx    // Save/cancel buttons
+├── QuickEntryStatus.tsx     // Status strip
+└── index.tsx               // Main container
+```
+
+### 3. macOS UI Engineer Consultation
+
+**Native macOS Refinements**:
+
+**Vibrancy Implementation**:
+```rust
+// Use Menu material instead of HudWindow for better contrast
+apply_vibrancy(
+    &window, 
+    NSVisualEffectMaterial::Menu,
+    Some(NSVisualEffectState::Active),
+    Some(12.0) // Corner radius
+)
+```
+
+**Title Bar Design**:
+- Custom traffic lights with only close button (minimize/maximize unnecessary)
+- Collection indicator: "Quick Note → Collection Name"
+- Proper `data-tauri-drag-region` for dragging
+- Window focus/blur states for traffic light appearance
+
+**Typography & Spacing** (macOS HIG compliant):
+- Window padding: 20px standard
+- Section spacing: 16px (2 × 8px grid)
+- Input height: 22px (standard macOS text fields)
+- Button height: 32px (standard macOS buttons)
+
+**Keyboard Shortcuts** (macOS conventions):
+- `Cmd+S`: Save
+- `Cmd+W`: Close window
+- `Escape`: Close window  
+- `Cmd+Shift+M`: Toggle frontmatter
+- `Cmd+Enter`: Save and close
+
+**Focus Management**:
+- Auto-focus editor with 150ms delay after window visible
+- Position cursor at end of existing content
+- Proper VoiceOver/accessibility support with ARIA labels
+
+**Window Position Memory**:
+- Save size/position to settings
+- Center on active display by default
+- Handle multi-display setups automatically
+
+### 4. React Performance Architect Consultation
+
+**Performance Optimizations for <200ms Startup**:
+
+**Bundle Splitting Strategy**:
+```typescript
+// Separate lightweight entry bundle
+build: {
+  rollupOptions: {
+    input: {
+      main: 'index.html',
+      'quick-entry': 'quick-entry.html'
+    },
+    output: {
+      manualChunks: {
+        'vendor-core': ['react', 'react-dom', 'zustand'],
+        'vendor-editor': ['@codemirror/view', '@codemirror/state'], // Load on demand
+        'vendor-query': ['@tanstack/react-query'], // Load on demand
+      }
+    }
+  }
+}
+```
+
+**Ultra-Minimal Component Architecture**:
+- Lazy load CodeMirror and frontmatter components
+- Shell component with aggressive lazy loading
+- Separate loading states for editor vs form components
+
+**Store Architecture**:
+```typescript
+// Reuse existing stores with selective subscriptions
+const projectPath = useProjectStore(state => state.projectPath) // Precise selector
+const createQuickNote = useCallback(() => {
+  const { currentContent } = useQuickEntryStore.getState() // getState() pattern
+}, [])
+```
+
+**CodeMirror Optimization**:
+- Minimal extension set (basicSetup + markdown only)
+- No URL plugin, drag-drop, or heavy extensions
+- 1-second debounce for auto-save (faster than main app's 2s)
+
+**Data Loading Strategy**:
+- Aggressive caching: 10min staleTime for collections, 5min for schemas
+- Only load schema when collection selected
+- Reuse main app's query functions where possible
+
+**Performance Monitoring**:
+```typescript
+// Built-in metrics tracking for development
+quickEntryMetrics.mark('editor-ready')
+// Alert if startup > 200ms target
+```
+
+**Critical Performance Patterns Applied**:
+1. `getState()` pattern eliminates callback dependency cascades
+2. Lazy loading defers non-critical components
+3. Selective subscriptions only for render-affecting data
+4. Bundle splitting with shared runtime
+5. Minimal CodeMirror extensions
+6. Strategic memoization at component boundaries
+
+**Expected Performance Results**:
+- Startup: <150ms (target <200ms)
+- Memory: ~40MB (vs 80MB main app)
+- Bundle: ~300KB initial (vs 800KB main app)
+- Keystroke latency: <16ms (60fps)
+
+## Comprehensive Execution Plan
+
+Based on all agent consultations, here is the sequential implementation plan:
+
+### Phase 1: Backend Foundation (Days 1-3)
+
+#### 1.1 Add Dependencies & Configuration
+```bash
+# Add to src-tauri/Cargo.toml
+tauri-plugin-global-shortcut = "2"
+window-vibrancy = "0.5"
+
+# Update tauri.conf.json
+{
+  "plugins": {
+    "global-shortcut": { "all": true }
+  }
+}
+```
+
+#### 1.2 Implement Global Shortcut System
+**Files to create**:
+- `src-tauri/src/commands/global_shortcut.rs`
+- `src-tauri/src/commands/quick_entry.rs`
+
+**Key implementations**:
+- `GlobalShortcutState` struct with settings management
+- `register_quick_entry_shortcut()` command
+- `spawn_quick_entry_window()` with proper error handling
+- Window configuration with macOS vibrancy
+
+#### 1.3 Update Main Rust Application
+**Files to modify**:
+- `src-tauri/src/lib.rs` - Add new modules and commands
+- `src-tauri/src/commands/mod.rs` - Export new modules
+
+### Phase 2: Frontend Infrastructure (Days 4-6)
+
+#### 2.1 Create Quick Entry Bundle
+**Files to create**:
+- `quick-entry.html` - Separate entry point
+- `src/quick-entry-main.tsx` - Minimal React bootstrap
+- Update `vite.config.ts` with bundle splitting
+
+#### 2.2 Implement Store Architecture
+**Files to create**:
+- `src/store/quickEntryStore.ts` - Following Direct Store Pattern
+- `src/hooks/useQuickEntryData.ts` - Data loading with TanStack Query
+
+#### 2.3 Create Base Components
+**Files to create**:
+- `src/components/quick-entry/QuickEntryShell.tsx` - Main container with lazy loading
+- `src/components/quick-entry/QuickEntryTitleBar.tsx` - macOS title bar
+- Performance monitoring utilities
+
+### Phase 3: Editor Integration (Days 7-9)
+
+#### 3.1 Implement Minimal CodeMirror Editor
+**Files to create**:
+- `src/components/quick-entry/QuickEntryEditor.tsx`
+- `src/hooks/editor/useQuickEntryEditor.ts` - Minimal extensions
+- `src/lib/editor/quick-entry-theme.ts` - Simplified theme
+
+#### 3.2 Create Frontmatter System
+**Files to create**:
+- `src/components/quick-entry/QuickFrontmatterForm.tsx` - Collapsible form
+- `src/lib/quick-entry/schema-loader.ts` - Collection schema integration
+- Reuse existing frontmatter field components
+
+#### 3.3 Implement Auto-Save System
+**Files to create**:
+- `src/hooks/useQuickEntryAutoSave.ts` - 1s debounced saving
+- `src/lib/quick-entry/file-naming.ts` - Filename generation logic
+
+### Phase 4: Settings Integration (Days 10-11)
+
+#### 4.1 Extend Global Settings
+**Files to modify**:
+- `src/lib/project-registry/types.ts` - Add QuickEntry settings interface
+- `src/lib/project-registry/defaults.ts` - Default settings
+
+#### 4.2 Create Preferences UI
+**Files to create**:
+- `src/components/preferences/panes/QuickEntryPane.tsx`
+- Collection dropdown with validation
+- Shortcut customization interface
+
+### Phase 5: Integration & Polish (Days 12-14)
+
+#### 5.1 Command Palette Integration
+**Files to modify**:
+- `src/lib/commands/app-commands.ts` - Add quick entry commands
+- `src/lib/commands/types.ts` - New command group
+
+#### 5.2 Menu Integration
+**Files to modify**:
+- Main app menu structure for quick entry items
+- Keyboard shortcut registration on app startup
+
+#### 5.3 Error Handling & Edge Cases
+- Global shortcut conflict handling
+- Collection validation and fallbacks
+- Window state persistence
+- Multi-display behavior testing
+
+### Phase 6: Testing & Optimization (Days 15-16)
+
+#### 6.1 Performance Testing
+- Startup time measurement (target <200ms)
+- Memory usage monitoring
+- Bundle size optimization
+
+#### 6.2 Integration Testing
+- End-to-end workflow testing
+- Cross-window communication
+- Settings persistence
+- macOS accessibility testing
+
+#### 6.3 Manual Testing
+- Multi-display scenarios
+- Keyboard shortcut conflicts
+- VoiceOver compatibility
+- Different macOS versions
+
+### Implementation Guidelines
+
+**Critical Success Factors**:
+1. **Follow Direct Store Pattern** - Components access stores directly, no callback dependencies
+2. **Lazy Load Everything** - Only load essential components for <200ms startup
+3. **Reuse Existing Logic** - Leverage current file operations, schema parsing, editor patterns
+4. **Test Early** - Performance metrics from day 1
+5. **Native Feel** - macOS HIG compliance throughout
+
+**Key Files to Reference**:
+- `src/components/layout/Layout.tsx` - Event handling patterns
+- `src/store/editorStore.ts` - Direct store pattern examples
+- `src/lib/editor/extensions/createExtensions.ts` - CodeMirror setup
+- `src/components/preferences/PreferencesDialog.tsx` - Settings UI patterns
+
+**Quality Gates**:
+- Each phase must pass `npm run check:all`
+- Performance benchmarks must be met before next phase
+- Manual testing on real macOS environments
+- Accessibility testing with VoiceOver
+
+This plan provides a systematic approach to implementing the global new note feature while maintaining consistency with existing Astro Editor architecture and achieving the performance targets identified by all consulting agents.
