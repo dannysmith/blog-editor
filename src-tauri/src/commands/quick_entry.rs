@@ -7,6 +7,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
+// Default fallback values for quick entry
+const DEFAULT_PROJECT_PATH: &str = "/Users/danny/dev/astro-editor/temp-dummy-astro-project";
+const DEFAULT_COLLECTION_NAME: &str = "notes";
+
 #[cfg(target_os = "macos")]
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
@@ -52,6 +56,16 @@ struct ProjectRegistry {
     version: i32,
 }
 
+/// Create default quick entry data for fallback scenarios
+async fn create_default_quick_entry_data() -> Result<QuickEntryData, String> {
+    let collections = scan_project(DEFAULT_PROJECT_PATH.to_string()).await?;
+    Ok(QuickEntryData {
+        project_path: DEFAULT_PROJECT_PATH.to_string(),
+        default_collection: DEFAULT_COLLECTION_NAME.to_string(),
+        collections,
+    })
+}
+
 /// Spawn the quick entry window
 #[tauri::command]
 pub async fn spawn_quick_entry_window(app: AppHandle) -> Result<(), String> {
@@ -60,10 +74,10 @@ pub async fn spawn_quick_entry_window(app: AppHandle) -> Result<(), String> {
         // If window exists, just show and focus it
         existing_window
             .show()
-            .map_err(|e| format!("Failed to show existing window: {}", e))?;
+            .map_err(|e| format!("Failed to show existing window: {e}"))?;
         existing_window
             .set_focus()
-            .map_err(|e| format!("Failed to focus existing window: {}", e))?;
+            .map_err(|e| format!("Failed to focus existing window: {e}"))?;
         return Ok(());
     }
 
@@ -85,19 +99,19 @@ pub async fn spawn_quick_entry_window(app: AppHandle) -> Result<(), String> {
     .skip_taskbar(true)
     .visible(false) // Start hidden, show after setup
     .build()
-    .map_err(|e| format!("Failed to create window: {}", e))?;
+    .map_err(|e| format!("Failed to create window: {e}"))?;
 
     // Apply macOS vibrancy
     #[cfg(target_os = "macos")]
     {
         apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, Some(12.0))
-            .map_err(|e| format!("Failed to apply vibrancy: {}", e))?;
+            .map_err(|e| format!("Failed to apply vibrancy: {e}"))?
     }
 
     // Show the window
     window
         .show()
-        .map_err(|e| format!("Failed to show window: {}", e))?;
+        .map_err(|e| format!("Failed to show window: {e}"))?;
 
     info!("Quick entry window spawned successfully");
     Ok(())
@@ -122,7 +136,7 @@ pub async fn save_quick_note(
         .join("src")
         .join("content")
         .join(&collection)
-        .join(format!("{}.md", filename));
+        .join(format!("{filename}.md"));
 
     // Create frontmatter
     let mut frontmatter = HashMap::new();
@@ -148,7 +162,7 @@ pub async fn save_quick_note(
     )
     .await?;
 
-    info!("Quick note saved successfully to collection: {}", collection);
+    info!("Quick note saved successfully to collection: {collection}");
     Ok(())
 }
 
@@ -161,24 +175,16 @@ pub async fn get_quick_entry_data(app: AppHandle) -> Result<QuickEntryData, Stri
             match serde_json::from_str::<GlobalSettings>(&content) {
                 Ok(settings) => settings,
                 Err(e) => {
-                    warn!("Failed to parse global settings: {}, using defaults", e);
+                    warn!("Failed to parse global settings: {e}, using defaults");
                     // Use default values if parsing fails
-                    return Ok(QuickEntryData {
-                        project_path: "/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string(),
-                        default_collection: "notes".to_string(),
-                        collections: scan_project("/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string()).await?,
-                    });
+                    return create_default_quick_entry_data().await;
                 }
             }
         }
         Err(e) => {
-            warn!("Failed to read global settings: {}, using defaults", e);
+            warn!("Failed to read global settings: {e}, using defaults");
             // Use default values if file doesn't exist
-            return Ok(QuickEntryData {
-                project_path: "/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string(),
-                default_collection: "notes".to_string(),
-                collections: scan_project("/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string()).await?,
-            });
+            return create_default_quick_entry_data().await;
         }
     };
 
@@ -195,30 +201,30 @@ pub async fn get_quick_entry_data(app: AppHandle) -> Result<QuickEntryData, Stri
                                     path_str.to_string()
                                 } else {
                                     warn!("Project path is not a string, using default");
-                                    "/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string()
+                                    DEFAULT_PROJECT_PATH.to_string()
                                 }
                             } else {
                                 warn!("Project data missing path field, using default");
-                                "/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string()
+                                DEFAULT_PROJECT_PATH.to_string()
                             }
                         } else {
                             warn!("Last opened project not found in registry, using default");
-                            "/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string()
+                            DEFAULT_PROJECT_PATH.to_string()
                         }
                     } else {
                         warn!("No last opened project, using default");
-                        "/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string()
+                        DEFAULT_PROJECT_PATH.to_string()
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to parse project registry: {}, using default", e);
-                    "/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string()
+                    warn!("Failed to parse project registry: {e}, using default");
+                    DEFAULT_PROJECT_PATH.to_string()
                 }
             }
         }
         Err(e) => {
-            warn!("Failed to read project registry: {}, using default", e);
-            "/Users/danny/dev/astro-editor/temp-dummy-astro-project".to_string()
+            warn!("Failed to read project registry: {e}, using default");
+            DEFAULT_PROJECT_PATH.to_string()
         }
     };
 
@@ -247,7 +253,7 @@ pub async fn register_quick_entry_shortcut(
         return Err("Shortcut cannot be empty".to_string());
     }
 
-    info!("Global shortcut '{}' registered successfully", shortcut);
+    info!("Global shortcut '{shortcut}' registered successfully");
     Ok(())
 }
 
@@ -265,7 +271,7 @@ pub async fn unregister_quick_entry_shortcut(
         return Err("Shortcut cannot be empty".to_string());
     }
 
-    info!("Global shortcut '{}' unregistered successfully", shortcut);
+    info!("Global shortcut '{shortcut}' unregistered successfully");
     Ok(())
 }
 
@@ -293,7 +299,7 @@ fn generate_quick_note_filename(title: &str, content: &str) -> String {
     let timestamp = chrono::Utc::now();
     format!(
         "quick-note-{}",
-        timestamp.format("%Y-%m-%d-%H%M%S").to_string()
+        timestamp.format("%Y-%m-%d-%H%M%S")
     )
 }
 
@@ -304,8 +310,6 @@ fn slugify(text: &str) -> String {
         .map(|c| {
             if c.is_alphanumeric() {
                 c
-            } else if c.is_whitespace() || c == '-' || c == '_' {
-                '-'
             } else {
                 '-'
             }
