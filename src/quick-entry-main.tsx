@@ -12,5 +12,5 @@ ReactDOM.createRoot(document.getElementById('quick-entry-root')!).render(
       <QuickEntryWindow />
       <Toaster />
     </ThemeProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 )

@@ -25,7 +25,7 @@ export const QuickEntryWindow: React.FC = () => {
   const [projectData, setProjectData] = useState<QuickEntryData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  
+
   const titleRef = useRef<HTMLInputElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
   const editorViewRef = useRef<EditorView | null>(null)
@@ -36,14 +36,13 @@ export const QuickEntryWindow: React.FC = () => {
       try {
         const data = await invoke<QuickEntryData>('get_quick_entry_data')
         setProjectData(data)
-      } catch (error) {
-        console.error('Failed to load project data:', error)
+      } catch {
         toast.error('Failed to load project data')
       } finally {
         setIsLoading(false)
       }
     }
-    loadData()
+    void loadData()
   }, [])
 
   // Initialize CodeMirror editor
@@ -76,7 +75,7 @@ export const QuickEntryWindow: React.FC = () => {
           height: '100%',
         },
       }),
-      EditorView.updateListener.of((update) => {
+      EditorView.updateListener.of(update => {
         if (update.docChanged) {
           setContent(update.state.doc.toString())
         }
@@ -121,11 +120,10 @@ export const QuickEntryWindow: React.FC = () => {
         content: content.trim(),
         collection: projectData.default_collection,
       })
-      
+
       toast.success('Note saved successfully!')
       await getCurrentWindow().close()
-    } catch (error) {
-      console.error('Failed to save note:', error)
+    } catch {
       toast.error('Failed to save note')
     } finally {
       setIsSaving(false)
@@ -138,20 +136,32 @@ export const QuickEntryWindow: React.FC = () => {
   }, [])
 
   // Keyboard shortcuts
-  useHotkeys('mod+enter', (e) => {
-    e.preventDefault()
-    handleSave()
-  }, { enableOnFormTags: true })
+  useHotkeys(
+    'mod+enter',
+    e => {
+      e.preventDefault()
+      void handleSave()
+    },
+    { enableOnFormTags: true }
+  )
 
-  useHotkeys('escape', (e) => {
-    e.preventDefault()
-    handleClose()
-  }, { enableOnFormTags: true })
+  useHotkeys(
+    'escape',
+    e => {
+      e.preventDefault()
+      void handleClose()
+    },
+    { enableOnFormTags: true }
+  )
 
-  useHotkeys('mod+w', (e) => {
-    e.preventDefault()
-    handleClose()
-  }, { enableOnFormTags: true })
+  useHotkeys(
+    'mod+w',
+    e => {
+      e.preventDefault()
+      void handleClose()
+    },
+    { enableOnFormTags: true }
+  )
 
   if (isLoading) {
     return (
@@ -164,7 +174,10 @@ export const QuickEntryWindow: React.FC = () => {
   return (
     <div className="quick-entry-window h-full flex flex-col bg-background/95 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50" data-tauri-drag-region>
+      <div
+        className="flex items-center justify-between px-4 py-3 border-b border-border/50"
+        data-tauri-drag-region
+      >
         <div className="flex items-center gap-2">
           <div className="text-xs text-muted-foreground">
             Quick Note → {projectData?.default_collection}
@@ -172,7 +185,7 @@ export const QuickEntryWindow: React.FC = () => {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
             aria-label="Close"
           />
@@ -187,7 +200,7 @@ export const QuickEntryWindow: React.FC = () => {
           type="text"
           placeholder="Title (optional)"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={e => setTitle(e.target.value)}
           className="border-border/50 bg-background/50"
         />
 
@@ -204,14 +217,14 @@ export const QuickEntryWindow: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleClose}
+            onClick={() => void handleClose()}
             disabled={isSaving}
           >
             Cancel
           </Button>
           <Button
             size="sm"
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={isSaving || (!title.trim() && !content.trim())}
           >
             {isSaving ? 'Saving...' : 'Save'}

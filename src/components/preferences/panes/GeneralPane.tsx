@@ -69,6 +69,7 @@ export const GeneralPane: React.FC = () => {
       updateGlobal,
       globalSettings?.general?.theme,
       globalSettings?.general?.highlights,
+      globalSettings?.general?.quickEntry,
     ]
   )
 
@@ -103,6 +104,7 @@ export const GeneralPane: React.FC = () => {
       updateGlobal,
       globalSettings?.general?.ideCommand,
       globalSettings?.general?.highlights,
+      globalSettings?.general?.quickEntry,
     ]
   )
 

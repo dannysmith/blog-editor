@@ -47,7 +47,7 @@ export const QuickEntryPane: React.FC = () => {
   const { globalSettings, updateGlobal } = usePreferences()
   const projectPath = useProjectStore(state => state.projectPath)
   const { data: collections = [] } = useCollectionsQuery(projectPath)
-  
+
   const [shortcutInput, setShortcutInput] = useState(
     globalSettings?.general?.quickEntry?.globalShortcut || 'CmdOrCtrl+Shift+N'
   )
@@ -55,20 +55,15 @@ export const QuickEntryPane: React.FC = () => {
 
   // Update local shortcut input when global settings change
   useEffect(() => {
-    setShortcutInput(globalSettings?.general?.quickEntry?.globalShortcut || 'CmdOrCtrl+Shift+N')
-  }, [globalSettings?.general?.quickEntry?.globalShortcut])
-
-  // Early return if settings not loaded yet
-  if (!globalSettings) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center text-muted-foreground">Loading...</div>
-      </div>
+    setShortcutInput(
+      globalSettings?.general?.quickEntry?.globalShortcut || 'CmdOrCtrl+Shift+N'
     )
-  }
+  }, [globalSettings?.general?.quickEntry?.globalShortcut])
 
   const handleEnabledChange = useCallback(
     async (enabled: boolean) => {
+      if (!globalSettings) return
+
       await updateGlobal({
         general: {
           ...globalSettings.general,
@@ -86,8 +81,7 @@ export const QuickEntryPane: React.FC = () => {
             shortcut: globalSettings.general.quickEntry.globalShortcut,
           })
           toast.success('Quick Entry enabled')
-        } catch (error) {
-          console.error('Failed to register shortcut:', error)
+        } catch {
           toast.error('Failed to register global shortcut')
         }
       } else {
@@ -97,8 +91,8 @@ export const QuickEntryPane: React.FC = () => {
             shortcut: globalSettings.general.quickEntry.globalShortcut,
           })
           toast.success('Quick Entry disabled')
-        } catch (error) {
-          console.error('Failed to unregister shortcut:', error)
+        } catch {
+          // Silent fail for unregistration
         }
       }
     },
@@ -107,11 +101,11 @@ export const QuickEntryPane: React.FC = () => {
 
   const handleShortcutChange = useCallback(
     async (value: string) => {
-      if (isUpdatingShortcut) return
-      
+      if (isUpdatingShortcut || !globalSettings) return
+
       setIsUpdatingShortcut(true)
       const oldShortcut = globalSettings.general.quickEntry.globalShortcut
-      
+
       try {
         // Unregister old shortcut if enabled
         if (globalSettings.general.quickEntry.enabled) {
@@ -139,8 +133,7 @@ export const QuickEntryPane: React.FC = () => {
         }
 
         toast.success('Global shortcut updated')
-      } catch (error) {
-        console.error('Failed to update shortcut:', error)
+      } catch {
         toast.error('Failed to update global shortcut')
         setShortcutInput(oldShortcut) // Revert on error
       } finally {
@@ -152,6 +145,8 @@ export const QuickEntryPane: React.FC = () => {
 
   const handleDefaultCollectionChange = useCallback(
     async (value: string) => {
+      if (!globalSettings) return
+
       await updateGlobal({
         general: {
           ...globalSettings.general,
@@ -168,37 +163,46 @@ export const QuickEntryPane: React.FC = () => {
   const handleShortcutInputKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       e.preventDefault()
-      
+
       const modifiers = []
       if (e.metaKey || e.ctrlKey) modifiers.push('CmdOrCtrl')
       if (e.shiftKey) modifiers.push('Shift')
       if (e.altKey) modifiers.push('Alt')
-      
+
       // Only capture actual key combinations, not just modifiers
       if (e.key && !['Meta', 'Control', 'Shift', 'Alt'].includes(e.key)) {
         const key = e.key.toUpperCase()
         const shortcut = [...modifiers, key].join('+')
         setShortcutInput(shortcut)
-        handleShortcutChange(shortcut)
+        void handleShortcutChange(shortcut)
       }
     },
     [handleShortcutChange]
   )
 
+  // Early return if settings not loaded yet
+  if (!globalSettings) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center text-muted-foreground">Loading...</div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <SettingsSection title="Quick Entry">
-        <SettingsField 
+        <SettingsField
           label="Enable Quick Entry"
           description="Allow creating quick notes from anywhere using a global keyboard shortcut"
         >
           <Switch
             checked={globalSettings.general.quickEntry.enabled}
-            onCheckedChange={handleEnabledChange}
+            onCheckedChange={checked => void handleEnabledChange(checked)}
           />
         </SettingsField>
 
-        <SettingsField 
+        <SettingsField
           label="Global Shortcut"
           description="Press keys to set shortcut. Try combinations like Cmd+Shift+N"
         >
@@ -206,18 +210,20 @@ export const QuickEntryPane: React.FC = () => {
             value={shortcutInput}
             onKeyDown={handleShortcutInputKeyDown}
             placeholder="Press keys to set shortcut"
-            disabled={!globalSettings.general.quickEntry.enabled || isUpdatingShortcut}
+            disabled={
+              !globalSettings.general.quickEntry.enabled || isUpdatingShortcut
+            }
             className="font-mono"
           />
         </SettingsField>
 
-        <SettingsField 
+        <SettingsField
           label="Default Collection"
           description="Collection where quick notes will be saved"
         >
           <Select
             value={globalSettings.general.quickEntry.defaultCollection}
-            onValueChange={handleDefaultCollectionChange}
+            onValueChange={value => void handleDefaultCollectionChange(value)}
             disabled={!globalSettings.general.quickEntry.enabled}
           >
             <SelectTrigger>

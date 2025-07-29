@@ -1,4 +1,4 @@
-use crate::commands::files::{save_markdown_content, read_app_data_file};
+use crate::commands::files::{read_app_data_file, save_markdown_content};
 use crate::commands::project::scan_project;
 use crate::models::Collection;
 use log::{info, warn};
@@ -127,10 +127,10 @@ pub async fn save_quick_note(
 ) -> Result<(), String> {
     // Get project data to determine where to save
     let quick_entry_data = get_quick_entry_data(app.clone()).await?;
-    
+
     // Generate filename
     let filename = generate_quick_note_filename(&title, &content);
-    
+
     // Build file path
     let collection_path = PathBuf::from(&quick_entry_data.project_path)
         .join("src")
@@ -156,8 +156,8 @@ pub async fn save_quick_note(
         collection_path.to_string_lossy().to_string(),
         frontmatter,
         content,
-        String::new(), // No imports for quick notes
-        None, // No schema field order
+        String::new(),                 // No imports for quick notes
+        None,                          // No schema field order
         quick_entry_data.project_path, // project root
     )
     .await?;
@@ -170,26 +170,33 @@ pub async fn save_quick_note(
 #[tauri::command]
 pub async fn get_quick_entry_data(app: AppHandle) -> Result<QuickEntryData, String> {
     // Read global settings to get quick entry configuration
-    let global_settings = match read_app_data_file(app.clone(), "preferences/global-settings.json".to_string()).await {
-        Ok(content) => {
-            match serde_json::from_str::<GlobalSettings>(&content) {
-                Ok(settings) => settings,
-                Err(e) => {
-                    warn!("Failed to parse global settings: {e}, using defaults");
-                    // Use default values if parsing fails
-                    return create_default_quick_entry_data().await;
+    let global_settings =
+        match read_app_data_file(app.clone(), "preferences/global-settings.json".to_string()).await
+        {
+            Ok(content) => {
+                match serde_json::from_str::<GlobalSettings>(&content) {
+                    Ok(settings) => settings,
+                    Err(e) => {
+                        warn!("Failed to parse global settings: {e}, using defaults");
+                        // Use default values if parsing fails
+                        return create_default_quick_entry_data().await;
+                    }
                 }
             }
-        }
-        Err(e) => {
-            warn!("Failed to read global settings: {e}, using defaults");
-            // Use default values if file doesn't exist
-            return create_default_quick_entry_data().await;
-        }
-    };
+            Err(e) => {
+                warn!("Failed to read global settings: {e}, using defaults");
+                // Use default values if file doesn't exist
+                return create_default_quick_entry_data().await;
+            }
+        };
 
     // Get the current project path from project registry
-    let project_path = match read_app_data_file(app.clone(), "preferences/project-registry.json".to_string()).await {
+    let project_path = match read_app_data_file(
+        app.clone(),
+        "preferences/project-registry.json".to_string(),
+    )
+    .await
+    {
         Ok(content) => {
             match serde_json::from_str::<ProjectRegistry>(&content) {
                 Ok(registry) => {
@@ -247,7 +254,7 @@ pub async fn register_quick_entry_shortcut(
     // In Tauri v2, shortcut registration is done through the plugin builder
     // This function is kept for API compatibility but actual registration happens in lib.rs
     warn!("Global shortcut registration should be done through plugin builder in Tauri v2");
-    
+
     // For now, we'll just validate the shortcut format
     if shortcut.is_empty() {
         return Err("Shortcut cannot be empty".to_string());
@@ -266,7 +273,7 @@ pub async fn unregister_quick_entry_shortcut(
     // In Tauri v2, shortcut unregistration is done through the plugin
     // This function is kept for API compatibility
     warn!("Global shortcut unregistration should be done through plugin in Tauri v2");
-    
+
     if shortcut.is_empty() {
         return Err("Shortcut cannot be empty".to_string());
     }
@@ -297,23 +304,14 @@ fn generate_quick_note_filename(title: &str, content: &str) -> String {
 
     // Fallback to timestamp
     let timestamp = chrono::Utc::now();
-    format!(
-        "quick-note-{}",
-        timestamp.format("%Y-%m-%d-%H%M%S")
-    )
+    format!("quick-note-{}", timestamp.format("%Y-%m-%d-%H%M%S"))
 }
 
 /// Convert text to a URL-friendly slug
 fn slugify(text: &str) -> String {
     text.to_lowercase()
         .chars()
-        .map(|c| {
-            if c.is_alphanumeric() {
-                c
-            } else {
-                '-'
-            }
-        })
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>()
         .split('-')
         .filter(|s| !s.is_empty())

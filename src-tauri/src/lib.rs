@@ -67,17 +67,16 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             .with_shortcuts(["CmdOrCtrl+Shift+N"])?
             .with_handler(|app, shortcut, event| {
                 use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
-                if event.state == ShortcutState::Pressed {
-                    if shortcut.matches(Modifiers::SUPER | Modifiers::SHIFT, Code::KeyN) ||
-                       shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyN) {
+                if event.state == ShortcutState::Pressed
+                    && (shortcut.matches(Modifiers::SUPER | Modifiers::SHIFT, Code::KeyN) ||
+                       shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyN)) {
                         let app_handle = app.clone();
                         tauri::async_runtime::spawn(async move {
                             if let Err(e) = spawn_quick_entry_window(app_handle).await {
-                                eprintln!("Failed to spawn quick entry window: {}", e);
+                                eprintln!("Failed to spawn quick entry window: {e}");
                             }
                         });
                     }
-                }
             })
             .build())
         .plugin(tauri_plugin_log::Builder::new()
@@ -251,9 +250,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             app.manage(Mutex::new(menu_state));
 
             // Initialize global shortcut for quick entry
-            
+
             // Global shortcut will be registered when settings are loaded
-            
             // Register global shortcut from settings
             let app_clone = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -265,10 +263,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Quick entry data loaded successfully");
                     }
                     Err(e) => {
-                        eprintln!("Failed to load quick entry data: {}", e);
+                        eprintln!("Failed to load quick entry data: {e}");
                         // Register default shortcut as fallback
                         if let Err(e) = register_quick_entry_shortcut(app_clone, "CmdOrCtrl+Shift+N".to_string()).await {
-                            eprintln!("Failed to register default global shortcut: {}", e);
+                            eprintln!("Failed to register default global shortcut: {e}");
                         }
                     }
                 }
@@ -306,7 +304,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let app_handle = app.clone();
                     tauri::async_runtime::spawn(async move {
                         if let Err(e) = spawn_quick_entry_window(app_handle).await {
-                            eprintln!("Failed to spawn quick entry window: {}", e);
+                            eprintln!("Failed to spawn quick entry window: {e}");
                         }
                     });
                 }
