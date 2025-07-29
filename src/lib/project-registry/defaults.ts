@@ -30,6 +30,11 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
       adverbs: true,
       conjunctions: true,
     },
+    quickEntry: {
+      enabled: true,
+      globalShortcut: 'CmdOrCtrl+Shift+N',
+      defaultCollection: 'notes',
+    },
   },
   defaultProjectSettings: DEFAULT_PROJECT_SETTINGS,
   version: 1,

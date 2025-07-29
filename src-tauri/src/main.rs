@@ -15,6 +15,6 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     astro_editor_lib::run()
 }

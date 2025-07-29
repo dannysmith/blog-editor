@@ -56,6 +56,11 @@ export interface GlobalSettings {
       adverbs: boolean
       conjunctions: boolean
     }
+    quickEntry: {
+      enabled: boolean
+      globalShortcut: string
+      defaultCollection: string
+    }
   }
   // Default settings that apply to new projects
   defaultProjectSettings: ProjectSettings

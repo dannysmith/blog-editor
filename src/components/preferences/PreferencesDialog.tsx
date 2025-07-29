@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Settings, Folder, FileText } from 'lucide-react'
+import { Settings, Folder, FileText, Zap } from 'lucide-react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,6 +27,7 @@ import {
 import { GeneralPane } from './panes/GeneralPane'
 import { ProjectSettingsPane } from './panes/ProjectSettingsPane'
 import { FrontmatterMappingsPane } from './panes/FrontmatterMappingsPane'
+import { QuickEntryPane } from './panes/QuickEntryPane'
 import { usePreferences } from '../../hooks/usePreferences'
 
 interface PreferencesDialogProps {
@@ -34,7 +35,7 @@ interface PreferencesDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-type PreferencePane = 'general' | 'project' | 'frontmatter'
+type PreferencePane = 'general' | 'quickentry' | 'project' | 'frontmatter'
 
 const getNavigationItems = (hasProject: boolean) =>
   [
@@ -42,6 +43,12 @@ const getNavigationItems = (hasProject: boolean) =>
       id: 'general' as const,
       name: 'General',
       icon: Settings,
+      available: true,
+    },
+    {
+      id: 'quickentry' as const,
+      name: 'Quick Entry',
+      icon: Zap,
       available: true,
     },
     {
@@ -62,6 +69,8 @@ const getPaneTitle = (pane: PreferencePane): string => {
   switch (pane) {
     case 'general':
       return 'General'
+    case 'quickentry':
+      return 'Quick Entry'
     case 'project':
       return 'Project Settings'
     case 'frontmatter':
@@ -143,6 +152,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 pt-0">
               {activePane === 'general' && <GeneralPane />}
+              {activePane === 'quickentry' && <QuickEntryPane />}
               {activePane === 'project' && <ProjectSettingsPane />}
               {activePane === 'frontmatter' && <FrontmatterMappingsPane />}
             </div>

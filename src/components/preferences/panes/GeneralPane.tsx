@@ -57,6 +57,11 @@ export const GeneralPane: React.FC = () => {
             adverbs: true,
             conjunctions: true,
           },
+          quickEntry: globalSettings?.general?.quickEntry || {
+            enabled: true,
+            globalShortcut: 'CmdOrCtrl+Shift+N',
+            defaultCollection: 'notes',
+          },
         },
       })
     },
@@ -64,6 +69,7 @@ export const GeneralPane: React.FC = () => {
       updateGlobal,
       globalSettings?.general?.theme,
       globalSettings?.general?.highlights,
+      globalSettings?.general?.quickEntry,
     ]
   )
 
@@ -85,6 +91,11 @@ export const GeneralPane: React.FC = () => {
             adverbs: true,
             conjunctions: true,
           },
+          quickEntry: globalSettings?.general?.quickEntry || {
+            enabled: true,
+            globalShortcut: 'CmdOrCtrl+Shift+N',
+            defaultCollection: 'notes',
+          },
         },
       })
     },
@@ -93,6 +104,7 @@ export const GeneralPane: React.FC = () => {
       updateGlobal,
       globalSettings?.general?.ideCommand,
       globalSettings?.general?.highlights,
+      globalSettings?.general?.quickEntry,
     ]
   )
 
@@ -131,7 +143,7 @@ export const GeneralPane: React.FC = () => {
                 )
               })}
               {availableIdes.length === 0 && !ideLoading && (
-                <SelectItem value="" disabled>
+                <SelectItem value="none" disabled>
                   No IDEs detected
                 </SelectItem>
               )}

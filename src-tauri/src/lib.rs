@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
-    Emitter, Manager,
+    Emitter, Manager, WindowEvent,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
@@ -54,7 +54,7 @@ async fn update_format_menu_state(
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
@@ -63,6 +63,22 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new()
+            .with_shortcuts(["CmdOrCtrl+Shift+N"])?
+            .with_handler(|app, shortcut, event| {
+                use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
+                if event.state == ShortcutState::Pressed
+                    && (shortcut.matches(Modifiers::SUPER | Modifiers::SHIFT, Code::KeyN) ||
+                       shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyN)) {
+                        let app_handle = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            if let Err(e) = spawn_quick_entry_window(app_handle).await {
+                                eprintln!("Failed to spawn quick entry window: {e}");
+                            }
+                        });
+                    }
+            })
+            .build())
         .plugin(tauri_plugin_log::Builder::new()
             .targets([tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout)])
             .build())
@@ -91,6 +107,7 @@ pub fn run() {
                         Some("CmdOrCtrl+Shift+O"),
                     )?,
                     &MenuItem::with_id(app, "new_file", "New File", true, Some("CmdOrCtrl+N"))?,
+                    &MenuItem::with_id(app, "quick_note", "Quick Note", true, Some("CmdOrCtrl+Shift+N"))?,
                     &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "save", "Save", true, Some("CmdOrCtrl+S"))?,
                     &PredefinedMenuItem::separator(app)?,
@@ -232,12 +249,47 @@ pub fn run() {
             // Store menu state for later access
             app.manage(Mutex::new(menu_state));
 
+            // Initialize global shortcut for quick entry
+
+            // Global shortcut will be registered when settings are loaded
+            // Register global shortcut from settings
+            let app_clone = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                // Try to read settings and register shortcut if enabled
+                match get_quick_entry_data(app_clone.clone()).await {
+                    Ok(_) => {
+                        // Settings loaded successfully, the actual shortcut registration
+                        // will happen when preferences are loaded in the UI
+                        println!("Quick entry data loaded successfully");
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to load quick entry data: {e}");
+                        // Register default shortcut as fallback
+                        if let Err(e) = register_quick_entry_shortcut(app_clone, "CmdOrCtrl+Shift+N".to_string()).await {
+                            eprintln!("Failed to register default global shortcut: {e}");
+                        }
+                    }
+                }
+            });
+
             // Apply window vibrancy with rounded corners on macOS
             #[cfg(target_os = "macos")]
             {
                 let window = app.get_webview_window("main").unwrap();
                 apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, Some(12.0))
                     .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+            }
+
+            // Configure main window to hide instead of quit when closed
+            if let Some(main_window) = app.get_webview_window("main") {
+                let window_clone = main_window.clone();
+                main_window.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        // Prevent window from closing, hide it instead so app stays in tray
+                        api.prevent_close();
+                        let _ = window_clone.hide();
+                    }
+                });
             }
 
             // Handle menu events
@@ -247,6 +299,14 @@ pub fn run() {
                 }
                 "new_file" => {
                     let _ = app.emit("menu-new-file", ());
+                }
+                "quick_note" => {
+                    let app_handle = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = spawn_quick_entry_window(app_handle).await {
+                            eprintln!("Failed to spawn quick entry window: {e}");
+                        }
+                    });
                 }
                 "save" => {
                     let _ = app.emit("menu-save", ());
@@ -346,8 +406,14 @@ pub fn run() {
             write_file_content,
             create_directory,
             open_path_in_ide,
-            get_available_ides
+            get_available_ides,
+            spawn_quick_entry_window,
+            save_quick_note,
+            get_quick_entry_data,
+            register_quick_entry_shortcut,
+            unregister_quick_entry_shortcut
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+    Ok(())
 }
