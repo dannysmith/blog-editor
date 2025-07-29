@@ -729,15 +729,25 @@ quickEntryMetrics.mark('editor-ready')
 - Bundle: ~300KB initial (vs 800KB main app)
 - Keystroke latency: <16ms (60fps)
 
+## REVISED: Simplified Execution Plan
+
+**Requirements Clarification**: User wants ultra-simple floating window with just:
+1. Title field (optional frontmatter)
+2. Markdown editor content
+3. Save to preferred collection
+4. Works when main app closed
+
+**Architecture Simplification**: The original plan was over-engineered. Here's the streamlined approach:
+
 ## Comprehensive Execution Plan
 
-Based on all agent consultations, here is the sequential implementation plan:
+Based on all agent consultations but **simplified to match actual requirements**:
 
-### Phase 1: Backend Foundation (Days 1-3)
+### Phase 1: Backend Foundation (Days 1-2) - SIMPLIFIED
 
 #### 1.1 Add Dependencies & Configuration
 ```bash
-# Add to src-tauri/Cargo.toml
+# Add to src-tauri/Cargo.toml  
 tauri-plugin-global-shortcut = "2"
 window-vibrancy = "0.5"
 
@@ -749,129 +759,151 @@ window-vibrancy = "0.5"
 }
 ```
 
-#### 1.2 Implement Global Shortcut System
+#### 1.2 Implement Minimal Global Shortcut System  
 **Files to create**:
-- `src-tauri/src/commands/global_shortcut.rs`
-- `src-tauri/src/commands/quick_entry.rs`
+- `src-tauri/src/commands/quick_entry.rs` - Single file for all quick entry logic
 
-**Key implementations**:
-- `GlobalShortcutState` struct with settings management
-- `register_quick_entry_shortcut()` command
-- `spawn_quick_entry_window()` with proper error handling
-- Window configuration with macOS vibrancy
+**Key implementations** (simplified):
+- `spawn_quick_entry_window()` - Basic window creation
+- `save_quick_note()` - Reuse existing file creation logic
+- Basic window configuration with macOS vibrancy
+- **No complex state management** - just window spawning
 
 #### 1.3 Update Main Rust Application
 **Files to modify**:
-- `src-tauri/src/lib.rs` - Add new modules and commands
-- `src-tauri/src/commands/mod.rs` - Export new modules
+- `src-tauri/src/lib.rs` - Add quick_entry module
+- `src-tauri/src/commands/mod.rs` - Export quick_entry
 
-### Phase 2: Frontend Infrastructure (Days 4-6)
+### Phase 2: Minimal UI (Days 3-4) - SIMPLIFIED
 
-#### 2.1 Create Quick Entry Bundle
+#### 2.1 Create Simple Quick Entry Bundle
 **Files to create**:
-- `quick-entry.html` - Separate entry point
+- `quick-entry.html` - Basic entry point (no complex bundle splitting needed)
 - `src/quick-entry-main.tsx` - Minimal React bootstrap
-- Update `vite.config.ts` with bundle splitting
+- **Skip complex vite config changes** - simple is better
 
-#### 2.2 Implement Store Architecture
+#### 2.2 Single Component Architecture (No Store Needed)
 **Files to create**:
-- `src/store/quickEntryStore.ts` - Following Direct Store Pattern
-- `src/hooks/useQuickEntryData.ts` - Data loading with TanStack Query
+- `src/components/quick-entry/QuickEntryWindow.tsx` - **Single component** with:
+  - Title input field
+  - CodeMirror editor
+  - Save/Cancel buttons
+  - **No separate stores** - just local React state
 
-#### 2.3 Create Base Components
-**Files to create**:
-- `src/components/quick-entry/QuickEntryShell.tsx` - Main container with lazy loading
-- `src/components/quick-entry/QuickEntryTitleBar.tsx` - macOS title bar
-- Performance monitoring utilities
+#### 2.3 Leverage Existing Systems
+**Reuse existing patterns**:
+- Use existing `useProjectStore` to get default collection
+- Reuse existing `invoke()` patterns for file saving
+- **Skip complex TanStack Query** - just call Tauri commands directly
 
-### Phase 3: Editor Integration (Days 7-9)
+### Phase 3: Settings Integration (Days 5-6) - SIMPLIFIED
 
-#### 3.1 Implement Minimal CodeMirror Editor
-**Files to create**:
-- `src/components/quick-entry/QuickEntryEditor.tsx`
-- `src/hooks/editor/useQuickEntryEditor.ts` - Minimal extensions
-- `src/lib/editor/quick-entry-theme.ts` - Simplified theme
-
-#### 3.2 Create Frontmatter System
-**Files to create**:
-- `src/components/quick-entry/QuickFrontmatterForm.tsx` - Collapsible form
-- `src/lib/quick-entry/schema-loader.ts` - Collection schema integration
-- Reuse existing frontmatter field components
-
-#### 3.3 Implement Auto-Save System
-**Files to create**:
-- `src/hooks/useQuickEntryAutoSave.ts` - 1s debounced saving
-- `src/lib/quick-entry/file-naming.ts` - Filename generation logic
-
-### Phase 4: Settings Integration (Days 10-11)
-
-#### 4.1 Extend Global Settings
+#### 3.1 Add Quick Entry Preference to Global Settings
 **Files to modify**:
-- `src/lib/project-registry/types.ts` - Add QuickEntry settings interface
-- `src/lib/project-registry/defaults.ts` - Default settings
+- `src/lib/project-registry/types.ts` - Add simple quickEntry settings:
+  ```typescript
+  quickEntry: {
+    enabled: boolean
+    globalShortcut: string  
+    defaultCollection: string
+  }
+  ```
+- `src/lib/project-registry/defaults.ts` - Default values
 
-#### 4.2 Create Preferences UI
+#### 3.2 Simple Preferences UI
 **Files to create**:
-- `src/components/preferences/panes/QuickEntryPane.tsx`
-- Collection dropdown with validation
-- Shortcut customization interface
+- `src/components/preferences/panes/QuickEntryPane.tsx` - Basic form with:
+  - Enable/disable toggle
+  - Shortcut input field
+  - Collection dropdown (reuse existing collection query)
 
-### Phase 5: Integration & Polish (Days 12-14)
+### Phase 4: Integration & Polish (Days 7-8) - SIMPLIFIED
 
-#### 5.1 Command Palette Integration
-**Files to modify**:
-- `src/lib/commands/app-commands.ts` - Add quick entry commands
-- `src/lib/commands/types.ts` - New command group
+#### 4.1 Connect Global Shortcut to Settings
+**Implementation**:
+- Register shortcut on app startup from settings
+- Update shortcut when preferences change
+- **Skip command palette integration for now** - keep it simple
 
-#### 5.2 Menu Integration
-**Files to modify**:
-- Main app menu structure for quick entry items
-- Keyboard shortcut registration on app startup
+#### 4.2 Basic Error Handling
+**Simple error handling**:
+- Toast notifications for save errors
+- Basic shortcut conflict detection
+- **Skip complex edge cases** - handle as they come up
 
-#### 5.3 Error Handling & Edge Cases
-- Global shortcut conflict handling
-- Collection validation and fallbacks
-- Window state persistence
-- Multi-display behavior testing
+### Final Architecture: Ultra-Simple
 
-### Phase 6: Testing & Optimization (Days 15-16)
+**Single React Component** (`QuickEntryWindow.tsx`):
+```tsx
+const QuickEntryWindow = () => {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const { projectPath, globalSettings } = useProjectStore()
+  
+  const handleSave = async () => {
+    const defaultCollection = globalSettings?.quickEntry?.defaultCollection
+    const frontmatter = title ? { title } : {}
+    
+    await invoke('save_quick_note', {
+      content,
+      frontmatter, 
+      collection: defaultCollection,
+      projectPath
+    })
+    // Close window
+  }
+  
+  return (
+    <div className="quick-entry-window">
+      <input 
+        type="text" 
+        placeholder="Title (optional)"
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+      />
+      <CodeMirrorEditor 
+        value={content}
+        onChange={setContent}
+        extensions={[markdown(), basicKeymap]}
+      />
+      <div className="actions">
+        <button onClick={handleSave}>Save</button>
+        <button onClick={closeWindow}>Cancel</button>  
+      </div>
+    </div>
+  )
+}
+```
 
-#### 6.1 Performance Testing
-- Startup time measurement (target <200ms)
-- Memory usage monitoring
-- Bundle size optimization
+**Total Implementation Time: ~8 days instead of 16**
 
-#### 6.2 Integration Testing
-- End-to-end workflow testing
-- Cross-window communication
-- Settings persistence
-- macOS accessibility testing
+### SIMPLIFIED Implementation Guidelines
 
-#### 6.3 Manual Testing
-- Multi-display scenarios
-- Keyboard shortcut conflicts
-- VoiceOver compatibility
-- Different macOS versions
+**Critical Success Factors** (simplified):
+1. **Keep It Simple** - Single component, local state, minimal complexity
+2. **Reuse Existing Patterns** - Use current `useProjectStore`, `invoke()` patterns, CodeMirror setup
+3. **Leverage Existing File Operations** - Reuse current save logic, don't reinvent
+4. **Focus on Core UX** - Title + content + save, that's it
 
-### Implementation Guidelines
+**Key Files to Reference** (simplified):
+- `src/store/projectStore.ts` - How to get current project and settings
+- `src/components/editor/Editor.tsx` - CodeMirror setup patterns  
+- `src/hooks/mutations/useSaveFileMutation.ts` - How to save files
+- `src/lib/project-registry/defaults.ts` - How to add new settings
 
-**Critical Success Factors**:
-1. **Follow Direct Store Pattern** - Components access stores directly, no callback dependencies
-2. **Lazy Load Everything** - Only load essential components for <200ms startup
-3. **Reuse Existing Logic** - Leverage current file operations, schema parsing, editor patterns
-4. **Test Early** - Performance metrics from day 1
-5. **Native Feel** - macOS HIG compliance throughout
+**Quality Gates** (simplified):
+- Must work with main app closed
+- Must save to correct collection
+- Must generate proper frontmatter
+- Must feel native on macOS
 
-**Key Files to Reference**:
-- `src/components/layout/Layout.tsx` - Event handling patterns
-- `src/store/editorStore.ts` - Direct store pattern examples
-- `src/lib/editor/extensions/createExtensions.ts` - CodeMirror setup
-- `src/components/preferences/PreferencesDialog.tsx` - Settings UI patterns
+**Total Complexity Reduction**:
+- ❌ 6 separate components → ✅ 1 single component
+- ❌ Complex store architecture → ✅ Local React state
+- ❌ Bundle splitting optimization → ✅ Simple separate HTML file
+- ❌ Advanced performance monitoring → ✅ Basic fast window
+- ❌ Complex frontmatter forms → ✅ Single title input
+- ❌ Collection dropdown UI → ✅ Preference setting only
+- ❌ 16 day implementation → ✅ 8 day implementation
 
-**Quality Gates**:
-- Each phase must pass `npm run check:all`
-- Performance benchmarks must be met before next phase
-- Manual testing on real macOS environments
-- Accessibility testing with VoiceOver
-
-This plan provides a systematic approach to implementing the global new note feature while maintaining consistency with existing Astro Editor architecture and achieving the performance targets identified by all consulting agents.
+This **simplified plan** matches your actual requirements perfectly and uses existing Astro Editor patterns without over-engineering.
