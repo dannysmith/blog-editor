@@ -214,6 +214,11 @@ export function useLayoutEventListeners() {
               globalSettings?.general?.highlights?.conjunctions ?? true,
             [partOfSpeech]: !currentValue,
           },
+          quickEntry: globalSettings?.general?.quickEntry || {
+            enabled: true,
+            globalShortcut: 'CmdOrCtrl+Shift+N',
+            defaultCollection: 'notes',
+          },
         },
       }
 
@@ -246,6 +251,11 @@ export function useLayoutEventListeners() {
             adjectives: newValue,
             adverbs: newValue,
             conjunctions: newValue,
+          },
+          quickEntry: globalSettings?.general?.quickEntry || {
+            enabled: true,
+            globalShortcut: 'CmdOrCtrl+Shift+N',
+            defaultCollection: 'notes',
           },
         },
       }

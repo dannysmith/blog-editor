@@ -57,6 +57,11 @@ export const GeneralPane: React.FC = () => {
             adverbs: true,
             conjunctions: true,
           },
+          quickEntry: globalSettings?.general?.quickEntry || {
+            enabled: true,
+            globalShortcut: 'CmdOrCtrl+Shift+N',
+            defaultCollection: 'notes',
+          },
         },
       })
     },
@@ -84,6 +89,11 @@ export const GeneralPane: React.FC = () => {
             adjectives: true,
             adverbs: true,
             conjunctions: true,
+          },
+          quickEntry: globalSettings?.general?.quickEntry || {
+            enabled: true,
+            globalShortcut: 'CmdOrCtrl+Shift+N',
+            defaultCollection: 'notes',
           },
         },
       })

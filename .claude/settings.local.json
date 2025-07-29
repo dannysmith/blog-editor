@@ -36,7 +36,8 @@
       "Bash(git mv:*)",
       "WebFetch(domain:docs.anthropic.com)",
       "Bash(RUST_BACKTRACE=1 npm run rust:test)",
-      "Bash(RUST_BACKTRACE=1 cargo test test_validate_project_path_valid -- --nocapture)"
+      "Bash(RUST_BACKTRACE=1 cargo test test_validate_project_path_valid -- --nocapture)",
+      "Bash(cargo:*)"
     ],
     "deny": []
   }
