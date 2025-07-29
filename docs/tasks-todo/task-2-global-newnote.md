@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Implement a system-wide global quick-entry window for Astro Editor that enables rapid note capture from anywhere on macOS. The feature leverages Tauri v2's global shortcut capabilities to spawn a lightweight, floating markdown editor window that saves directly to a user-configured collection without requiring the main application to be open.
+Implement a system-wide global quick-entry window for Astro Editor that enables rapid note capture from anywhere on macOS. The feature leverages Tauri v2's global shortcut capabilities to spawn a lightweight, floating markdown editor window that saves directly to a user-configured collection. The app runs in system tray mode to enable global shortcuts.
 
 **Core Value Proposition**: Reduce friction for note capture by eliminating the need to open the full application, navigate to a collection, and create a new file.
 
@@ -12,187 +12,133 @@ Implement a system-wide global quick-entry window for Astro Editor that enables 
 
 #### FR-1: Global Shortcut System
 - **FR-1.1**: Register system-wide keyboard shortcut (default: `Cmd+Shift+N`)
-- **FR-1.2**: Shortcut works when main application is closed/backgrounded
+- **FR-1.2**: Shortcut works when main application window is closed (app runs in system tray)
 - **FR-1.3**: Customizable shortcut preference in main application settings
 - **FR-1.4**: Shortcut registration persists across app restarts
 - **FR-1.5**: Graceful handling of shortcut conflicts with other applications
 
 #### FR-2: Quick Entry Window
-- **FR-2.1**: Lightweight floating window (400x300px minimum, resizable)
+- **FR-2.1**: Lightweight floating window (420x380px, resizable)
 - **FR-2.2**: Always-on-top behavior with proper z-order management
-- **FR-2.3**: Borderless design with custom window controls
+- **FR-2.3**: Borderless design with minimal UI chrome
 - **FR-2.4**: Automatic positioning (center of active display)
-- **FR-2.5**: Window state persistence (size, position)
-- **FR-2.6**: Native macOS vibrancy/transparency effects
+- **FR-2.5**: Native macOS vibrancy/transparency effects (HudWindow material)
 
 #### FR-3: Simplified Editor
 - **FR-3.1**: CodeMirror 6 editor with markdown syntax highlighting
-- **FR-3.2**: Subset of main editor features (no slash commands, no advanced formatting)
-- **FR-3.3**: Basic keyboard shortcuts (Cmd+S save, Cmd+W close, Cmd+B bold, Cmd+I italic)
-- **FR-3.4**: Real-time markdown preview (optional toggle)
-- **FR-3.5**: Auto-focus in editor on window appearance
+- **FR-3.2**: Minimal editor features (basic markdown only)
+- **FR-3.3**: Essential keyboard shortcuts (Cmd+Enter save & close, Cmd+W/Escape close)
+- **FR-3.4**: Auto-focus in title field on window appearance
 
 #### FR-4: Frontmatter Management
-- **FR-4.1**: Minimal frontmatter form based on target collection schema
-- **FR-4.2**: Auto-population of common fields (date, title from first line)
-- **FR-4.3**: Toggle between frontmatter and content editing
-- **FR-4.4**: Validation against collection schema before save
+- **FR-4.1**: Simple title input field (optional)
+- **FR-4.2**: Title becomes `title` field in frontmatter if provided
 
 #### FR-5: Collection Integration
 - **FR-5.1**: User preference for default "quick notes" collection
-- **FR-5.2**: Collection dropdown for runtime selection
+- **FR-5.2**: All notes save to the configured default collection
 - **FR-5.3**: Validation that target collection exists and is accessible
-- **FR-5.4**: Fallback handling for missing/invalid collections
 
 #### FR-6: File Operations
-- **FR-6.1**: Auto-save functionality (2-second interval when content changes)
-- **FR-6.2**: Manual save with Cmd+S
-- **FR-6.3**: Automatic filename generation based on title/date
-- **FR-6.4**: Close and save operation (Cmd+Shift+S or custom shortcut)
-- **FR-6.5**: Discard changes option (Escape key or close button)
+- **FR-6.1**: Manual save and close with Cmd+Enter
+- **FR-6.2**: Automatic filename generation based on title or timestamp
+- **FR-6.3**: Close without saving (Escape key or Cancel button)
 
 ### Non-Functional Requirements
 
 #### NFR-1: Performance
-- **NFR-1.1**: Window spawn time < 500ms from shortcut press
-- **NFR-1.2**: Memory footprint < 50MB for quick entry window
-- **NFR-1.3**: Smooth animations (60fps) for window appearance/dismissal
+- **NFR-1.1**: Fast window spawn time from shortcut press
+- **NFR-1.2**: Minimal memory footprint for quick entry window
+- **NFR-1.3**: Smooth window appearance/dismissal
 - **NFR-1.4**: No impact on main application performance when running
 
 #### NFR-2: Reliability
 - **NFR-2.1**: Graceful handling of file system errors
-- **NFR-2.2**: Recovery from crash scenarios (draft recovery)
-- **NFR-2.3**: Proper cleanup of system resources on window close
-- **NFR-2.4**: Robust error handling for global shortcut registration failures
+- **NFR-2.2**: Proper cleanup of system resources on window close
+- **NFR-2.3**: Robust error handling for global shortcut registration failures
 
 #### NFR-3: Usability
 - **NFR-3.1**: Consistent visual design with main application
-- **NFR-3.2**: Clear visual feedback for save states
-- **NFR-3.3**: Intuitive keyboard navigation
-- **NFR-3.4**: Accessibility compliance (VoiceOver, keyboard navigation)
+- **NFR-3.2**: Intuitive keyboard navigation
+- **NFR-3.3**: Accessibility compliance (VoiceOver, keyboard navigation)
 
 ## System Architecture
 
-### High-Level Architecture
+### High-Level Architecture (Simplified)
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Main Window   │    │  Global Shortcut │    │ Quick Entry     │
-│   (React App)   │    │   Manager (Rust) │    │ Window (React)  │
-├─────────────────┤    ├──────────────────┤    ├─────────────────┤
-│ - Settings UI   │◄──►│ - Shortcut Reg   │◄──►│ - Mini Editor   │
-│ - Preferences   │    │ - Window Spawn   │    │ - Frontmatter   │
-│ - Collection    │    │ - IPC Bridge     │    │ - Auto-save     │
-│   Management    │    │                  │    │                 │
+│   Main Window   │    │  System Tray &   │    │ Quick Entry     │
+│   (React App)   │    │ Global Shortcut  │    │ Window (React)  │
+├─────────────────┤    │     (Rust)       │    ├─────────────────┤
+│ - Settings UI   │◄──►├──────────────────┤◄──►│ - Title Input   │
+│ - Preferences   │    │ - Shortcut Reg   │    │ - Markdown      │
+│                 │    │ - Window Spawn   │    │   Editor        │
+│                 │    │ - Data Provider  │    │ - Save/Cancel   │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                       │                       │
          └───────────────────────┼───────────────────────┘
                                  │
                     ┌──────────────────┐
-                    │  Shared Services │
+                    │  Existing        │
+                    │  Services        │
                     ├──────────────────┤
-                    │ - File System    │
-                    │ - Schema Parser  │
-                    │ - Settings Store │
-                    │ - Collection API │
+                    │ - File Creation  │
+                    │ - Project Data   │
+                    │ - Settings       │
                     └──────────────────┘
 ```
 
-### Component Architecture
+### Component Architecture (Simplified)
 
-#### 1. Global Shortcut Manager (Rust)
-**Location**: `src-tauri/src/commands/global_shortcut.rs`
-
-```rust
-pub struct GlobalShortcutManager {
-    registered_shortcuts: Arc<Mutex<HashMap<String, GlobalShortcut>>>,
-    app_handle: AppHandle,
-}
-
-#[tauri::command]
-pub async fn register_global_shortcut(
-    app_handle: AppHandle,
-    shortcut: String,
-    action: String,
-) -> Result<(), String>
-
-#[tauri::command]
-pub async fn unregister_global_shortcut(
-    app_handle: AppHandle,
-    shortcut: String,
-) -> Result<(), String>
-
-#[tauri::command]
-pub async fn spawn_quick_entry_window(
-    app_handle: AppHandle,
-) -> Result<(), String>
-```
-
-#### 2. Quick Entry Window Manager (Rust)
+#### 1. Quick Entry Commands (Rust)
 **Location**: `src-tauri/src/commands/quick_entry.rs`
 
 ```rust
-pub struct QuickEntryWindow {
-    window: Option<Window>,
-    settings: QuickEntrySettings,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct QuickEntrySettings {
-    pub default_collection: String,
-    pub window_size: (u32, u32),
-    pub window_position: (i32, i32),
-    pub auto_save_interval: u64,
-}
-
+// Three simple commands - no complex state management needed
 #[tauri::command]
-pub async fn create_quick_entry_window(
-    app_handle: AppHandle,
-) -> Result<String, String>
+pub async fn spawn_quick_entry_window(app: AppHandle) -> Result<(), String>
 
 #[tauri::command]
 pub async fn save_quick_note(
-    app_handle: AppHandle,
-    content: String,
-    frontmatter: serde_json::Value,
-    collection: String,
-) -> Result<String, String>
+    app: AppHandle, 
+    title: String, 
+    content: String, 
+    collection: String
+) -> Result<(), String>
+
+#[tauri::command]
+pub async fn get_quick_entry_data(state: State<'_, AppState>) -> Result<QuickEntryData, String>
 ```
 
-#### 3. Quick Entry React Components
+#### 2. Single React Component
+**Location**: `src/components/quick-entry/QuickEntryWindow.tsx`
 
-**Main Component**: `src/components/quick-entry/QuickEntryApp.tsx`
 ```typescript
-interface QuickEntryAppProps {}
-
-export const QuickEntryApp: React.FC<QuickEntryAppProps> = () => {
-  // State management for quick entry mode
-  // Simplified editor setup
-  // Frontmatter form integration
-  // Auto-save logic
+// Single component with local state - no complex architecture needed
+const QuickEntryWindow: React.FC = () => {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [projectData, setProjectData] = useState<QuickEntryData | null>(null)
+  
+  // Get project data via Tauri command (not Zustand stores)
+  useEffect(() => {
+    invoke('get_quick_entry_data').then(setProjectData)
+  }, [])
+  
+  // Simple save handler
+  const handleSave = async () => {
+    await invoke('save_quick_note', { title, content, collection: projectData.defaultCollection })
+    await getCurrentWindow().close()
+  }
+  
+  return (
+    // Title input + CodeMirror editor + Save/Cancel buttons
+  )
 }
 ```
 
-**Editor Component**: `src/components/quick-entry/QuickEditor.tsx` 
-```typescript
-interface QuickEditorProps {
-  content: string
-  onChange: (content: string) => void
-  onSave: () => Promise<void>
-  collection: string
-}
-```
-
-**Frontmatter Form**: `src/components/quick-entry/QuickFrontmatterForm.tsx`
-```typescript
-interface QuickFrontmatterFormProps {
-  schema: z.ZodSchema
-  values: Record<string, unknown>
-  onChange: (field: string, value: unknown) => void
-}
-```
-
-#### 4. Settings Integration
+#### 3. Settings Integration (Simplified)
 
 **Global Settings Extension**:
 ```typescript
@@ -204,9 +150,6 @@ export interface GlobalSettings {
       enabled: boolean
       globalShortcut: string
       defaultCollection: string
-      autoSaveInterval: number
-      windowSize: { width: number; height: number }
-      showPreview: boolean
     }
   }
   // ... rest unchanged
@@ -287,57 +230,7 @@ pub async fn create_quick_entry_window(app_handle: AppHandle) -> Result<WebviewW
 }
 ```
 
-### 3. State Management Architecture
 
-**Quick Entry Store** (`src/store/quickEntryStore.ts`):
-```typescript
-interface QuickEntryState {
-  // Content state
-  content: string
-  frontmatter: Record<string, unknown>
-  selectedCollection: string
-  
-  // UI state
-  isVisible: boolean
-  isDirty: boolean
-  isPreviewMode: boolean
-  
-  // Settings
-  settings: QuickEntrySettings
-  
-  // Actions
-  setContent: (content: string) => void
-  updateFrontmatter: (field: string, value: unknown) => void
-  setSelectedCollection: (collection: string) => void
-  saveNote: () => Promise<void>
-  closeWindow: () => void
-  resetState: () => void
-}
-
-export const useQuickEntryStore = create<QuickEntryState>((set, get) => ({
-  // Implementation following Direct Store Pattern
-}))
-```
-
-### 4. Auto-Save Implementation
-
-**Auto-Save Hook** (`src/hooks/useQuickEntryAutoSave.ts`):
-```typescript
-export const useQuickEntryAutoSave = () => {
-  const { content, frontmatter, isDirty, saveNote } = useQuickEntryStore()
-  const settings = useQuickEntryStore(state => state.settings)
-  
-  useEffect(() => {
-    if (!isDirty) return
-    
-    const timeoutId = setTimeout(() => {
-      saveNote()
-    }, settings.autoSaveInterval * 1000)
-    
-    return () => clearTimeout(timeoutId)
-  }, [content, frontmatter, isDirty, settings.autoSaveInterval, saveNote])
-}
-```
 
 ### 5. File Generation Logic
 
@@ -433,13 +326,12 @@ export const loadCollectionSchema = async (
 - [ ] Markdown syntax highlighting works correctly
 - [ ] Basic formatting shortcuts work (Cmd+B, Cmd+I)
 - [ ] Content is preserved during window lifetime
-- [ ] Auto-save occurs every 2 seconds when content changes
+- [ ] Manual save with Cmd+Enter works correctly
 
 ### AC-4: Frontmatter Integration
-- [ ] Frontmatter form adapts to selected collection schema
-- [ ] Common fields are auto-populated (date, title from content)
-- [ ] Frontmatter validation prevents invalid saves
-- [ ] Toggle between frontmatter and content editing works
+- [ ] Title field creates frontmatter when provided
+- [ ] Empty title results in content-only file
+- [ ] Title becomes `title` field in YAML frontmatter
 
 ### AC-5: File Operations
 - [ ] Files are saved to correct collection directory
@@ -517,8 +409,7 @@ export const loadCollectionSchema = async (
 ### Unit Tests
 - Global shortcut registration/unregistration logic
 - File naming generation algorithms
-- Frontmatter form field generation from schemas
-- Auto-save timing and debouncing logic
+- Title to frontmatter conversion logic
 
 ### Integration Tests
 - End-to-end quick entry workflow (shortcut → edit → save)
@@ -535,7 +426,7 @@ export const loadCollectionSchema = async (
 ### Performance Tests
 - Window spawn time measurement
 - Memory usage monitoring during extended use
-- Auto-save performance with large content
+- Save operation performance with large content
 - Global shortcut responsiveness under system load
 
 ---
@@ -743,7 +634,7 @@ quickEntryMetrics.mark('editor-ready')
 
 Based on all agent consultations but **simplified to match actual requirements**:
 
-### Phase 1: Backend Foundation (Days 1-2) - SIMPLIFIED & CORRECTED
+### Phase 1: Backend Foundation - SIMPLIFIED & CORRECTED
 
 #### 1.1 Add Dependencies & Configuration
 ```bash
@@ -793,7 +684,7 @@ async fn get_quick_entry_data(state: State<'_, AppState>) -> Result<QuickEntryDa
 - `src-tauri/src/commands/mod.rs` - Export quick_entry
 - `src-tauri/src/main.rs` - Add system tray initialization
 
-### Phase 2: Minimal UI (Days 3-4) - SIMPLIFIED
+### Phase 2: Minimal UI - SIMPLIFIED
 
 #### 2.1 Create Simple Quick Entry Bundle
 **Files to create**:
@@ -832,7 +723,7 @@ useEffect(() => {
 }, [])
 ```
 
-### Phase 3: Settings Integration (Days 5-6) - SIMPLIFIED
+### Phase 3: Settings Integration - SIMPLIFIED
 
 #### 3.1 Add Quick Entry Preference to Global Settings
 **Files to modify**:
@@ -853,7 +744,7 @@ useEffect(() => {
   - Shortcut input field
   - Collection dropdown (reuse existing collection query)
 
-### Phase 4: Integration & Polish (Days 7-8) - SIMPLIFIED
+### Phase 4: Integration & Polish - SIMPLIFIED
 
 #### 4.1 Connect Global Shortcut to Settings
 **Implementation**:
@@ -952,7 +843,6 @@ const QuickEntryWindow = () => {
 4. ✅ Window size 420×380px with 12px padding
 5. ✅ Visual separator between title and editor
 
-**Total Implementation Time: ~8 days instead of 16**
 
 ### SIMPLIFIED Implementation Guidelines
 
@@ -981,7 +871,7 @@ const QuickEntryWindow = () => {
 - ❌ Advanced performance monitoring → ✅ Basic fast window
 - ❌ Complex frontmatter forms → ✅ Single title input
 - ❌ Collection dropdown UI → ✅ Preference setting only
-- ❌ 16 day implementation → ✅ 8 day implementation
+- ❌ Complex implementation → ✅ Simplified approach
 
 This **simplified plan** matches your actual requirements perfectly and uses existing Astro Editor patterns without over-engineering.
 
