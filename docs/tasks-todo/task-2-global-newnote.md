@@ -743,36 +743,55 @@ quickEntryMetrics.mark('editor-ready')
 
 Based on all agent consultations but **simplified to match actual requirements**:
 
-### Phase 1: Backend Foundation (Days 1-2) - SIMPLIFIED
+### Phase 1: Backend Foundation (Days 1-2) - SIMPLIFIED & CORRECTED
 
 #### 1.1 Add Dependencies & Configuration
 ```bash
 # Add to src-tauri/Cargo.toml  
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-system-tray = "2"  # CRITICAL: App must run in background
 window-vibrancy = "0.5"
 
 # Update tauri.conf.json
 {
   "plugins": {
     "global-shortcut": { "all": true }
+  },
+  "systemTray": {
+    "iconPath": "icons/icon.png",
+    "iconAsTemplate": true
   }
 }
 ```
 
-#### 1.2 Implement Minimal Global Shortcut System  
+#### 1.2 Implement System Tray & Global Shortcut System  
 **Files to create**:
 - `src-tauri/src/commands/quick_entry.rs` - Single file for all quick entry logic
 
-**Key implementations** (simplified):
-- `spawn_quick_entry_window()` - Basic window creation
-- `save_quick_note()` - Reuse existing file creation logic
-- Basic window configuration with macOS vibrancy
-- **No complex state management** - just window spawning
+**Key implementations** (corrected based on expert feedback):
+```rust
+// Critical functions to implement:
+#[tauri::command]
+async fn spawn_quick_entry_window(app: AppHandle) -> Result<()>
+
+#[tauri::command]
+async fn save_quick_note(app: AppHandle, title: String, content: String, collection: String) -> Result<()>
+
+#[tauri::command]
+async fn get_quick_entry_data(state: State<'_, AppState>) -> Result<QuickEntryData>
+// ^ CRITICAL: Provides project data to quick entry window (Zustand stores don't share across windows)
+```
+
+**Window configuration** (corrected):
+- Use `NSVisualEffectMaterial::HudWindow` (not Menu) for better contrast
+- Size: 420×380px (taller for better spacing)
+- System tray mode so app runs in background
 
 #### 1.3 Update Main Rust Application
 **Files to modify**:
-- `src-tauri/src/lib.rs` - Add quick_entry module
+- `src-tauri/src/lib.rs` - Add quick_entry module + system tray setup
 - `src-tauri/src/commands/mod.rs` - Export quick_entry
+- `src-tauri/src/main.rs` - Add system tray initialization
 
 ### Phase 2: Minimal UI (Days 3-4) - SIMPLIFIED
 
@@ -782,19 +801,36 @@ window-vibrancy = "0.5"
 - `src/quick-entry-main.tsx` - Minimal React bootstrap
 - **Skip complex vite config changes** - simple is better
 
-#### 2.2 Single Component Architecture (No Store Needed)
+#### 2.2 Single Component Architecture (Corrected)
 **Files to create**:
 - `src/components/quick-entry/QuickEntryWindow.tsx` - **Single component** with:
-  - Title input field
-  - CodeMirror editor
-  - Save/Cancel buttons
-  - **No separate stores** - just local React state
+  - Title input field with auto-focus
+  - CodeMirror editor with minimal extensions
+  - Save/Cancel buttons with proper keyboard shortcuts
+  - **Local React state + Tauri commands** (not Zustand stores)
 
-#### 2.3 Leverage Existing Systems
-**Reuse existing patterns**:
-- Use existing `useProjectStore` to get default collection
-- Reuse existing `invoke()` patterns for file saving
-- **Skip complex TanStack Query** - just call Tauri commands directly
+**CRITICAL CORRECTION**: Cannot use `useProjectStore` across windows. Must use:
+```typescript
+// Get data via Tauri command instead
+const [projectData, setProjectData] = useState<QuickEntryData | null>(null)
+
+useEffect(() => {
+  invoke('get_quick_entry_data').then(setProjectData)
+}, [])
+```
+
+#### 2.3 Keyboard Navigation & macOS Feel
+**Required keyboard handling** (from macOS expert):
+```typescript
+useHotkeys('mod+enter', handleSave)  // ⌘Enter to save
+useHotkeys('escape', closeWindow)    // Escape to close
+useHotkeys('mod+w', closeWindow)     // ⌘W to close
+
+// Auto-focus on mount
+useEffect(() => {
+  titleInputRef.current?.focus()
+}, [])
+```
 
 ### Phase 3: Settings Integration (Days 5-6) - SIMPLIFIED
 
@@ -831,49 +867,90 @@ window-vibrancy = "0.5"
 - Basic shortcut conflict detection
 - **Skip complex edge cases** - handle as they come up
 
-### Final Architecture: Ultra-Simple
+### Final Architecture: Ultra-Simple (CORRECTED)
 
 **Single React Component** (`QuickEntryWindow.tsx`):
 ```tsx
 const QuickEntryWindow = () => {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const { projectPath, globalSettings } = useProjectStore()
+  const [projectData, setProjectData] = useState<QuickEntryData | null>(null)
+  const titleRef = useRef<HTMLInputElement>(null)
+  
+  // CORRECTED: Get data via Tauri command (not Zustand)
+  useEffect(() => {
+    invoke('get_quick_entry_data').then(setProjectData)
+  }, [])
+  
+  // Auto-focus title on mount
+  useEffect(() => {
+    titleRef.current?.focus()
+  }, [])
+  
+  // Keyboard shortcuts
+  useHotkeys('mod+enter', handleSave)
+  useHotkeys('escape', () => getCurrentWindow().close())
   
   const handleSave = async () => {
-    const defaultCollection = globalSettings?.quickEntry?.defaultCollection
+    if (!projectData) return
+    
     const frontmatter = title ? { title } : {}
     
     await invoke('save_quick_note', {
+      title,
       content,
-      frontmatter, 
-      collection: defaultCollection,
-      projectPath
+      collection: projectData.defaultCollection,
     })
-    // Close window
+    
+    await getCurrentWindow().close()
   }
   
   return (
-    <div className="quick-entry-window">
+    <div className="quick-entry-window p-3 h-full flex flex-col">
       <input 
+        ref={titleRef}
         type="text" 
         placeholder="Title (optional)"
         value={title}
         onChange={e => setTitle(e.target.value)}
+        className="mb-2 px-3 py-1.5 text-sm rounded-md border"
       />
-      <CodeMirrorEditor 
-        value={content}
-        onChange={setContent}
-        extensions={[markdown(), basicKeymap]}
-      />
-      <div className="actions">
-        <button onClick={handleSave}>Save</button>
-        <button onClick={closeWindow}>Cancel</button>  
+      
+      <div className="h-px bg-gray-200 dark:bg-gray-800 mb-2" />
+      
+      <div className="flex-1 min-h-0">
+        <CodeMirrorEditor 
+          value={content}
+          onChange={setContent}
+          extensions={[markdown(), basicKeymap]}
+        />
+      </div>
+      
+      <div className="flex justify-end gap-2 mt-3">
+        <button 
+          onClick={() => getCurrentWindow().close()}
+          className="px-4 py-1.5 text-sm rounded-md bg-gray-100"
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={handleSave}
+          className="px-4 py-1.5 text-sm rounded-md bg-blue-500 text-white"
+        >
+          Save
+        </button>  
       </div>
     </div>
   )
 }
 ```
+
+**Critical Architecture Changes**:
+1. ✅ App runs in system tray (not fully closed)
+2. ✅ Uses Tauri commands for data (not Zustand stores)
+3. ✅ Proper keyboard shortcuts & auto-focus
+4. ✅ Window size 420×380px with 12px padding
+5. ✅ Visual separator between title and editor
 
 **Total Implementation Time: ~8 days instead of 16**
 
@@ -907,3 +984,25 @@ const QuickEntryWindow = () => {
 - ❌ 16 day implementation → ✅ 8 day implementation
 
 This **simplified plan** matches your actual requirements perfectly and uses existing Astro Editor patterns without over-engineering.
+
+## Expert Review Summary
+
+### Critical Corrections Made:
+
+1. **System Tray Mode Required** (Tauri v2 Expert)
+   - Global shortcuts require app to be running in background
+   - Added `tauri-plugin-system-tray` dependency
+   - App will run with system tray icon (no dock icon)
+
+2. **Cross-Window State Solution** (Tauri v2 Expert)
+   - Zustand stores don't share between windows
+   - Added `get_quick_entry_data` Tauri command
+   - Quick entry window fetches data via `invoke()`
+
+3. **macOS UI Refinements** (macOS UI Engineer)
+   - Changed to `HudWindow` vibrancy for better contrast
+   - Increased window height to 380px for proper spacing
+   - Added keyboard shortcuts (⌘Enter, Escape, ⌘W)
+   - Added auto-focus and visual separator
+
+The corrected plan maintains the simplicity while ensuring it will actually work with Tauri v2's architecture and feel native on macOS.
