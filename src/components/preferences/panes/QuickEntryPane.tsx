@@ -145,7 +145,8 @@ export const QuickEntryPane: React.FC = () => {
 
   const handleDefaultCollectionChange = useCallback(
     async (value: string) => {
-      if (!globalSettings) return
+      if (!globalSettings || value === 'none' || !value || value.trim() === '')
+        return
 
       await updateGlobal({
         general: {
@@ -222,7 +223,39 @@ export const QuickEntryPane: React.FC = () => {
           description="Collection where quick notes will be saved"
         >
           <Select
-            value={globalSettings.general.quickEntry.defaultCollection}
+            value={(() => {
+              const currentDefault =
+                globalSettings.general.quickEntry.defaultCollection
+              const validCollections =
+                collections?.filter(
+                  collection => collection.name && collection.name.trim() !== ''
+                ) || []
+
+              // If current default exists and is valid, use it
+              if (
+                currentDefault &&
+                typeof currentDefault === 'string' &&
+                currentDefault.trim() !== '' &&
+                validCollections.some(c => c.name === currentDefault)
+              ) {
+                return currentDefault
+              }
+
+              // Otherwise, use first valid collection or fallback to 'none'
+              if (validCollections.length > 0) {
+                const firstName = validCollections[0]?.name
+                if (
+                  firstName &&
+                  typeof firstName === 'string' &&
+                  firstName.trim() !== ''
+                ) {
+                  return firstName
+                }
+              }
+
+              // Absolute fallback - ensure we NEVER return empty string
+              return 'none'
+            })()}
             onValueChange={value => void handleDefaultCollectionChange(value)}
             disabled={!globalSettings.general.quickEntry.enabled}
           >
@@ -230,11 +263,26 @@ export const QuickEntryPane: React.FC = () => {
               <SelectValue placeholder="Select default collection" />
             </SelectTrigger>
             <SelectContent>
-              {collections.map(collection => (
-                <SelectItem key={collection.name} value={collection.name}>
-                  {collection.name}
-                </SelectItem>
-              ))}
+              {(() => {
+                // Filter out collections with empty names
+                const validCollections =
+                  collections?.filter(
+                    collection =>
+                      collection.name && collection.name.trim() !== ''
+                  ) || []
+
+                return validCollections.length > 0 ? (
+                  validCollections.map(collection => (
+                    <SelectItem key={collection.name} value={collection.name}>
+                      {collection.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="none" disabled>
+                    No collections found
+                  </SelectItem>
+                )
+              })()}
             </SelectContent>
           </Select>
         </SettingsField>
